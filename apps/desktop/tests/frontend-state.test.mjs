@@ -1458,11 +1458,25 @@ test("automatic WSPR.live acquisition remains typed and accepts only retry inten
       capturedThrough: null,
     };
   };
-  const active = openSessionSucceeded(initialState(), { sessionId: "session-1" });
+  const active = openSessionSucceeded(initialState(), {
+    sessionId: "session-1",
+    bundleName: "current.session.antennabundle",
+    presentationId: 4,
+    reportHtml: "<p>prior full report</p>",
+    summaryHtml: "<p>prior summary</p>",
+    lifecycle: "running",
+    revision: 8,
+  });
   const fetching = beginWsprLiveAcquisition(active);
   const outcome = await invokeAdvanceSessionWsprLive(invoke);
   const waiting = wsprLiveAcquisitionSucceeded(fetching, outcome);
-  const completedSession = { sessionId: "session-1", lifecycle: "ended" };
+  const completedSession = {
+    sessionId: "session-1",
+    bundleName: "current.session.antennabundle",
+    lifecycle: "ended",
+    revision: 9,
+    reportAvailable: true,
+  };
   const completed = wsprLiveAcquisitionSucceeded(fetching, {
     status: "completed",
     session: completedSession,
@@ -1478,7 +1492,12 @@ test("automatic WSPR.live acquisition remains typed and accepts only retry inten
 
   assert.equal(fetching.wsprLiveAcquisitionStatus, "fetching");
   assert.equal(waiting.wsprLiveAcquisition.status, "waiting");
-  assert.equal(completed.session, completedSession);
+  assert.deepEqual(completed.session, {
+    ...active.session,
+    ...completedSession,
+  });
+  assert.equal(completed.session.reportHtml, "<p>prior full report</p>");
+  assert.equal(completed.session.summaryHtml, "<p>prior summary</p>");
   assert.equal(failed.wsprLiveAcquisitionError.detail, "offline");
   assert.deepEqual(calls, [
     ["advance_active_session_wspr_live", { request: { retry: false } }],
