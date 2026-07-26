@@ -29,7 +29,7 @@ ALL_HF_BANDS = (1, 3, 5, 7, 10, 14, 18, 21, 24, 28, 50)
 WINDOWS = (24, 72, 168)
 WSPR_ENDPOINT = "https://db1.wspr.live/?query="
 RBN_ENDPOINT = "https://www.reversebeacon.net/nodes/detail_json.php"
-USER_AGENT = "AntennaBench receiver-footprint research/1.0"
+PROJECT_URL = "https://antennabench.com"
 
 
 def parse_args() -> argparse.Namespace:
@@ -61,8 +61,33 @@ def sql_time(value: dt.datetime) -> str:
     return value.astimezone(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def http_get(url: str, timeout: int = 180) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+def workspace_version(repo_root: Path) -> str:
+    manifest = (repo_root / "Cargo.toml").read_text(encoding="utf-8")
+    section = re.search(
+        r"(?ms)^\[workspace\.package\]\s*$"
+        r"(?P<body>.*?)(?=^\[|\Z)",
+        manifest,
+    )
+    if section is None:
+        raise RuntimeError("Cargo.toml is missing [workspace.package]")
+    version = re.search(
+        r'(?m)^version\s*=\s*"(?P<value>[^"]+)"\s*$',
+        section.group("body"),
+    )
+    if version is None:
+        raise RuntimeError("Cargo.toml is missing [workspace.package].version")
+    return version.group("value")
+
+
+def user_agent(repo_root: Path) -> str:
+    return f"AntennaBench/{workspace_version(repo_root)} (+{PROJECT_URL})"
+
+
+def http_get(url: str, request_user_agent: str, timeout: int = 180) -> bytes:
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": request_user_agent, "Accept": "*/*"},
+    )
     last_error: Exception | None = None
     for attempt in range(4):
         try:
@@ -76,9 +101,9 @@ def http_get(url: str, timeout: int = 180) -> bytes:
     raise RuntimeError(last_error)
 
 
-def wspr_query(query: str) -> str:
+def wspr_query(query: str, request_user_agent: str) -> str:
     url = WSPR_ENDPOINT + urllib.parse.quote_plus(query)
-    return http_get(url).decode("utf-8")
+    return http_get(url, request_user_agent).decode("utf-8")
 
 
 def receiver_query(start: dt.datetime, end: dt.datetime) -> str:
@@ -206,14 +231,19 @@ def write_dict_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
-def refresh(snapshot_dir: Path, end: dt.datetime, cooldown: float) -> None:
+def refresh(
+    snapshot_dir: Path,
+    end: dt.datetime,
+    cooldown: float,
+    request_user_agent: str,
+) -> None:
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     starts = {hours: end - dt.timedelta(hours=hours) for hours in WINDOWS}
     queries: dict[str, str] = {}
     for index, hours in enumerate(WINDOWS):
         query = receiver_query(starts[hours], end)
         queries[str(hours)] = query
-        text = wspr_query(query)
+        text = wspr_query(query, request_user_agent)
         if not text.startswith("reporter_call,"):
             raise RuntimeError(f"unexpected WSPR.live response for {hours}h query")
         write_text(snapshot_dir / f"wspr-receivers-{hours}h.csv", text)
@@ -221,12 +251,12 @@ def refresh(snapshot_dir: Path, end: dt.datetime, cooldown: float) -> None:
             time.sleep(cooldown)
     time.sleep(cooldown)
     bquery = band_query(starts[168], starts[72], starts[24], end)
-    band_text = wspr_query(bquery)
+    band_text = wspr_query(bquery, request_user_agent)
     if not band_text.startswith("band,"):
         raise RuntimeError("unexpected WSPR.live response for band query")
     write_text(snapshot_dir / "wspr-receivers-by-band.csv", band_text)
 
-    rbn_bytes = http_get(RBN_ENDPOINT)
+    rbn_bytes = http_get(RBN_ENDPOINT, request_user_agent)
     records = json.loads(rbn_bytes)
     if not isinstance(records, list) or not records:
         raise RuntimeError("unexpected RBN active-node response")
@@ -606,7 +636,12 @@ def main() -> int:
     repo_root = args.repo_root.resolve()
     snapshot_dir = args.snapshot_dir.resolve()
     if args.refresh:
-        refresh(snapshot_dir, utc_end(args.end), args.cooldown)
+        refresh(
+            snapshot_dir,
+            utc_end(args.end),
+            args.cooldown,
+            user_agent(repo_root),
+        )
     summary = normalize_summary(snapshot_dir)
     write_query_history(snapshot_dir, summary)
     create_maps(repo_root, snapshot_dir, args.world_geojson.resolve(), summary, args.no_png)

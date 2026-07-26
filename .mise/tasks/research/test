@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# -*- mode: sh; sh-shell: bash; -*-
+#MISE description="Test offline research tooling"
+
+set -euo pipefail
+
+PYTHONDONTWRITEBYTECODE=1 \
+  python3 -m unittest discover -s tools/why-not-rbn -p 'test_*.py'

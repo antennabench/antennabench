@@ -249,6 +249,10 @@ client, idle-eviction, and timed fixed-size dedup boundaries; and HTTP redirect,
 timeout, header, content-length, streamed body, media, encoding, quarantine, and
 cancellation outcomes. All network tests use injected transports or loopback;
 the verification suite never depends on a live NOAA or WSJT-X service.
+The shared HTTP identity tests inspect the exact versioned AntennaBench
+`User-Agent` constructed by both production clients. The receiver-footprint
+research test derives the same identity from the workspace manifest and
+captures its WSPR.live and RBN requests without opening a network connection.
 WSPR.live fixtures additionally pin the fixed bidirectional TX/RX query,
 station-role classification, WSPRnet reporter identifiers containing `-` or
 `/` or no digit, strict session/transmitter callsigns, receiver-side azimuth

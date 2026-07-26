@@ -96,10 +96,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "antennabench-http"
+version = "0.1.0"
+dependencies = [
+ "reqwest 0.12.24",
+]
+
+[[package]]
 name = "antennabench-propagation"
 version = "0.1.0"
 dependencies = [
  "antennabench-core",
+ "antennabench-http",
  "chrono",
  "insta",
  "reqwest 0.12.24",
@@ -161,6 +169,7 @@ name = "antennabench-wsjtx"
 version = "0.1.0"
 dependencies = [
  "antennabench-core",
+ "antennabench-http",
  "antennabench-storage",
  "chrono",
  "insta",
