@@ -921,21 +921,37 @@ test("WSPR.live, WSJT-X, and report failures preserve coherent state", async () 
     },
   );
 
+  let finishReportRefresh;
   const completed = harness({
-    advance_active_session_wspr_live: { status: "completed", session: session({ lifecycle: "ended" }) },
+    advance_active_session_wspr_live: {
+      status: "completed",
+      session: sessionSummary({ lifecycle: "ended", revision: 6 }),
+    },
     active_session_conductor: conductor({ lifecycle: "ended", phase: "complete" }),
     active_session_antenna_controller: { policy: "manual", attached: false, armed: false, targets: {} },
     active_session_wsjtx_status: { phase: "stopped" },
-    refresh_active_session_report: {
-      presentationId: 6,
-      reportHtml: "<p>complete</p>",
-      summaryHtml: "<p>complete summary</p>",
-      revision: 6,
-      lifecycle: "ended",
-      completeness: "full_detail",
-    },
+    refresh_active_session_report: () => new Promise((resolve) => {
+      finishReportRefresh = resolve;
+    }),
   }, { state });
-  await completed.controller.advanceWsprLive(true);
+  const completion = completed.controller.advanceWsprLive(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(completed.controller.state.reportStatus, "refreshing");
+  assert.equal(
+    completed.controller.state.session.reportHtml,
+    "<p>prior</p>",
+    "summary-only finalization must retain the coherent report while revision 6 is verified",
+  );
+  assert.equal(completed.controller.state.session.summaryHtml, "<p>prior summary</p>");
+  finishReportRefresh({
+    presentationId: 6,
+    reportHtml: "<p>complete</p>",
+    summaryHtml: "<p>complete summary</p>",
+    revision: 6,
+    lifecycle: "ended",
+    completeness: "full_detail",
+  });
+  await completion;
   assert.deepEqual(completed.calls.map(([command]) => command), [
     "advance_active_session_wspr_live",
     "active_session_conductor",

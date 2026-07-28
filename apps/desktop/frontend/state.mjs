@@ -22,6 +22,14 @@ function reportSessionKey(session) {
   ]);
 }
 
+function reconcileSessionSummary(session, summary) {
+  if (
+    !session
+    || reportSessionKey(session) !== reportSessionKey(summary)
+  ) return summary;
+  return { ...session, ...summary };
+}
+
 function reportEntryOrigin(session, origin) {
   if (!["saved", "run"].includes(origin?.workflow)) return null;
   const focusTarget = origin.focusTarget === "saved-report-action"
@@ -1262,7 +1270,9 @@ export function wsprLiveAcquisitionSucceeded(state, outcome) {
   return {
     ...state,
     openStatus: sessionChanged ? "ready" : state.openStatus,
-    session: sessionChanged ? outcome.session : state.session,
+    session: sessionChanged
+      ? reconcileSessionSummary(state.session, outcome.session)
+      : state.session,
     wsprLiveAcquisitionStatus: "ready",
     wsprLiveAcquisition: outcome,
     wsprLiveAcquisitionError: null,

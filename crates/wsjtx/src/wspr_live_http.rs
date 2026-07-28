@@ -46,7 +46,7 @@ pub struct ReqwestWsprLiveTransport {
 
 impl ReqwestWsprLiveTransport {
     pub fn new() -> Result<Self, WsprLiveAcquisitionError> {
-        let client = Client::builder()
+        let client = antennabench_http::client_builder()
             .connect_timeout(Duration::from_secs(WSPR_LIVE_CONNECT_TIMEOUT_SECONDS))
             .timeout(Duration::from_secs(WSPR_LIVE_TOTAL_TIMEOUT_SECONDS))
             .redirect(Policy::none())
@@ -67,8 +67,7 @@ impl WsprLiveHttpTransport for ReqwestWsprLiveTransport {
             return Err(WsprLiveAcquisitionError::Cancelled);
         }
         let mut response = self
-            .client
-            .get(url)
+            .request(url)
             .send()
             .map_err(|error| WsprLiveAcquisitionError::Transport(error.to_string()))?;
         let received_at = Utc::now();
@@ -109,6 +108,30 @@ impl WsprLiveHttpTransport for ReqwestWsprLiveTransport {
             status,
             body,
         })
+    }
+}
+
+impl ReqwestWsprLiveTransport {
+    fn request(&self, url: &str) -> reqwest::blocking::RequestBuilder {
+        antennabench_http::get(&self.client, url)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use reqwest::header::USER_AGENT;
+
+    use super::*;
+
+    #[test]
+    fn production_request_identifies_antennabench() {
+        let transport = ReqwestWsprLiveTransport::new().unwrap();
+        let request = transport.request("https://db1.wspr.live/").build().unwrap();
+
+        assert_eq!(
+            request.headers().get(USER_AGENT).unwrap(),
+            antennabench_http::ANTENNABENCH_USER_AGENT
+        );
     }
 }
 

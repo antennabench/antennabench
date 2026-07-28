@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 antennabench-core = { path = "../core" }
+antennabench-http = { path = "../http" }
 chrono = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }

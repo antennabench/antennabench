@@ -202,11 +202,10 @@ impl ReqwestTransport {
             }
             attempt.follow()
         });
-        Client::builder()
+        antennabench_http::client_builder()
             .connect_timeout(Duration::from_secs(HTTP_CONNECT_TIMEOUT_SECONDS))
             .timeout(Duration::from_secs(HTTP_TOTAL_TIMEOUT_SECONDS))
             .redirect(redirects)
-            .user_agent(concat!("AntennaBench/", env!("CARGO_PKG_VERSION")))
             .build()
             .map(|client| Self { client })
             .map_err(|error| TransportError::new(error.to_string()))
@@ -237,7 +236,7 @@ impl ReqwestTransport {
             return Err(TransportError::resource(cancelled(&request.url, None)));
         }
         ensure_https_endpoint(&request.url).map_err(TransportError::resource)?;
-        let mut builder = self.client.get(&request.url);
+        let mut builder = self.request(&request.url);
         for (name, value) in &request.headers {
             builder = builder.header(name, value);
         }
@@ -293,6 +292,29 @@ impl ReqwestTransport {
             headers,
             body,
         })
+    }
+
+    fn request(&self, url: &str) -> reqwest::blocking::RequestBuilder {
+        antennabench_http::get(&self.client, url)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use reqwest::header::USER_AGENT;
+
+    use super::*;
+    use crate::F107_ENDPOINT;
+
+    #[test]
+    fn production_request_identifies_antennabench() {
+        let transport = ReqwestTransport::new().unwrap();
+        let request = transport.request(F107_ENDPOINT).build().unwrap();
+
+        assert_eq!(
+            request.headers().get(USER_AGENT).unwrap(),
+            antennabench_http::ANTENNABENCH_USER_AGENT
+        );
     }
 }
 

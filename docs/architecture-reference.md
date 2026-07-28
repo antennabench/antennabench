@@ -17,6 +17,9 @@ Current crates:
   antenna-control policy, invocation evidence, readiness validation, and
   v3/v4-to-v5 projection are owned by the cohesive `v5_antenna_control` core
   boundary; both retain the established root-level API names.
+- `crates/http`: the shared versioned AntennaBench identity and base HTTP
+  client configuration used by outbound adapters; provider-specific transport
+  policy remains within each adapter.
 - `crates/storage`: dispatched read/write, non-destructive upgrade, verified
   attachment, and lossless-copy APIs for `.session.wsprabundle` v1 and
   `.session.antennabundle` v2/v3/v4 directories.
@@ -689,6 +692,11 @@ state indefinitely.
 
 External systems should enter through narrow adapters so their availability,
 payload shape, and failure behavior do not become experiment-model invariants.
+Every repository-owned programmatic outbound HTTP request identifies itself as
+`AntennaBench/<workspace-version> (+https://antennabench.com)`. The shared base
+client owns that stable identity without adding operator, station, machine, or
+operating-system identifiers; adapter-owned clients retain their distinct
+redirect, timeout, validation, and resource policies.
 The durable boundaries are:
 
 - WSPR integration produces preserved adapter records and eligible
