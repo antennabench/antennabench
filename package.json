@@ -28,11 +28,12 @@
     "workerd": true
   },
   "devDependencies": {
+    "jsdom": "30.0.0",
     "prettier": "3.9.6"
   },
   "overrides": {
-    "wrangler@4.112.0": {
-      "miniflare@4.20260714.0": {
+    "wrangler@4.114.0": {
+      "miniflare@4.20260722.0": {
         "sharp": "0.35.3"
       }
     }

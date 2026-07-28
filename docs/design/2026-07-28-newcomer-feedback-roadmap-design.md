@@ -154,7 +154,7 @@ information.
 
 Keep open with `human-required`, but simplify substantially.
 
-- Remove fixed hashes, obsolete Compact Summary terminology, and the separate
+- Remove fixed hashes, obsolete pre-Summary terminology, and the separate
   artifact-pinning dependency.
 - Remove the requirement that a fixed cohort complete an identical exhaustive
   protocol.
@@ -500,7 +500,7 @@ Before reporting the issue graph complete:
 - verify every new issue has the intended labels and milestone;
 - verify every parent checklist uses actual issue numbers;
 - verify #274 is closed as not planned and no active issue still depends on it;
-- verify #77 contains no obsolete fixed-artifact or Compact Summary contract;
+- verify #77 contains no obsolete fixed-artifact or pre-Summary contract;
 - verify #75 contains no stale open blocker checkboxes;
 - verify #79 describes native WSPR rather than WSJT-X setup;
 - verify #233 clearly distinguishes the approved product slice from unresolved
