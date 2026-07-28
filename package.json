@@ -28,6 +28,7 @@
     "workerd": true
   },
   "devDependencies": {
+    "jsdom": "30.0.0",
     "prettier": "3.9.6"
   },
   "overrides": {
