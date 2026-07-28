@@ -35,8 +35,10 @@ experiment model or receiving broad access to the host computer.
 
 - **Core and storage** define bundle versions, validation, upgrades, checkpointed
   writes, recovery, and verified exports.
-- **Adapters** translate WSJT-X, WSPR.live, Reverse Beacon Network, and NOAA inputs
-  into attributed evidence without making any source mandatory.
+- **Adapters** translate the current WSJT-X, WSPR.live, Reverse Beacon Network,
+  and NOAA inputs into attributed evidence without making any source mandatory.
+  The selected native-WSPR path will add bounded audio/modem adapters behind the
+  same local evidence boundary.
 - **Analysis** aligns observations with what actually happened and derives
   conservative descriptive comparisons.
 - **Reporting** turns that analysis into deterministic standalone HTML with text

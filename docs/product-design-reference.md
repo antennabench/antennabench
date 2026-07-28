@@ -162,9 +162,24 @@ Default mode is whole-station A/B testing. TX-focused, RX-focused, and
 single-antenna profiling modes are part of the data model and can grow from the
 same bundle shape.
 
-WSJT-X companion mode is the first integration path. Its next narrow slice is
-passive setup-warning support; native WSPR, mobile operation, command-capable
-rig control, public search, and hosted publishing are later layers.
+WSJT-X companion mode is the implemented compatibility path and remains useful
+for maintainer/internal operation. The selected primary product path is native
+WSPR receive/decode plus RF-ready transmit audio with explicit operator arming,
+manual tuning, VOX, and complete offline/local evidence. CAT, PTT, automatic
+tuning, and WSPRnet upload are not prerequisites. macOS is the first measured
+target, while audio, modem, and evidence interfaces remain reusable by future
+iOS and Android clients. [Decision
+0029](decisions/0029-make-native-wspr-the-primary-product-path.md) records the
+boundary; [#233](https://github.com/rwjblue/antennabench/issues/233) owns its
+validation and implementation breakdown.
+
+Public promotion waits for the native workflow, an understandable Summary, a
+trustworthy signed candidate, and external operator validation. Private
+release-publishing proof may proceed against the current companion-capable
+code.
+
+Command-capable rig control, public search, and hosted publishing remain later
+layers.
 
 ## Bounded Local Operation
 

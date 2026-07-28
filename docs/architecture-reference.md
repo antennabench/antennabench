@@ -700,8 +700,16 @@ redirect, timeout, validation, and resource policies.
 The durable boundaries are:
 
 - WSPR integration produces preserved adapter records and eligible
-  observations; WSJT-X companion mode is first, while native implementations
-  may be added later.
+  observations. WSJT-X companion mode is the implemented compatibility path.
+  The selected primary product path adds native audio receive/decode and
+  RF-ready transmit audio under
+  [Decision 0029](decisions/0029-make-native-wspr-the-primary-product-path.md)
+  and [#233](https://github.com/rwjblue/antennabench/issues/233). Its first
+  station boundary is explicit operator arming, manual tuning, and VOX; CAT,
+  PTT, automatic tuning, and provider upload are not prerequisites. Native local
+  evidence remains useful offline. Audio, modem, and evidence interfaces must
+  remain reusable by macOS, iOS, and Android even though macOS is measured
+  first.
 - Rig integration is optional. A session remains runnable with manual switching
   and no rig adapter. The first selected slice derives advisory WSPR setup
   warnings from fresh status belonging to the already admitted WSJT-X client;

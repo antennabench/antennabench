@@ -37,9 +37,10 @@ The maintained milestones are outcome-oriented and have no due date unless a
 real scheduling commitment exists:
 
 - `Trustworthy macOS Release`: repeatable artifacts, signing and notarization,
-  supply-chain gates, repository protections, and release verification.
-- `Field Validation`: feedback policy, report comprehension, maintainer field
-  alpha, and external operator beta.
+  organization transfer, supply-chain gates, repository protections, and a
+  private release-publishing proof from current code.
+- `Field Validation`: lightweight report comprehension, maintainer companion
+  alpha, native-WSPR product work, and a signed external native-workflow beta.
 
 The completed `Local Conductor` milestone is closed. The former `Optional
 Hosted Sharing` milestone is also closed: its service implementation issues were
@@ -48,6 +49,10 @@ for a possible future reassessment.
 
 Milestones describe outcomes rather than priority. The roadmap and tracker
 dependency order determine which milestone receives attention now.
+
+The private release proof is not public promotion. Native WSPR, Summary
+comprehension, and external-beta gates must pass before the public preview
+tracked by #295.
 
 ## Labels And Lifecycle
 
@@ -165,3 +170,25 @@ Newly discovered implementation work gets a focused issue rather than being
 silently added to an active issue. Material public behavior, durable schema, or
 architecture expansion requires user direction before the issue contract is
 changed.
+
+## Organization And Shared Tooling
+
+Issue #290 owns the transfer to the AntennaBench organization and creation of a
+public organization `.github` repository.
+
+The organization repository may provide:
+
+- the organization profile;
+- generic issue and pull-request templates;
+- default `SECURITY.md`, `SUPPORT.md`, and concise contributor guidance; and
+- shared links and contact paths.
+
+Licenses, `dependabot.yml`, release and deployment workflows, credentials,
+detailed setup and verification commands, and `CODEOWNERS` remain
+repository-specific. Repository `CODEOWNERS` files may reference organization
+teams.
+
+Organization Actions defaults should establish the least-privilege baseline,
+while each repository retains the workflows and secrets needed for its own
+product. Reusable CI workflows should be introduced only after two repositories
+demonstrate a stable duplicated need.

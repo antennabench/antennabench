@@ -55,6 +55,8 @@ historical references, not tutorials or work trackers; start with the
   Taxonomy](0027-use-predeclared-goal-lenses-and-one-distance-taxonomy.md)
 - [0028: Use Compile-Time Askama Templates For Report
   HTML](0028-use-compile-time-askama-templates-for-report-html.md)
+- [0029: Make Native WSPR The Primary Product
+  Path](0029-make-native-wspr-the-primary-product-path.md)
 
 Two records use number 0014 because they were accepted concurrently. Their
 filenames and links remain unchanged to preserve history; future decisions
