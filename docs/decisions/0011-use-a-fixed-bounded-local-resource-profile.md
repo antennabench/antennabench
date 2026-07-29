@@ -435,11 +435,11 @@ availability, not infinite trust or capacity.
 
 ## References
 
-- [Decision issue #40](https://github.com/rwjblue/antennabench/issues/40)
-- [Local conductor tracker #45](https://github.com/rwjblue/antennabench/issues/45)
-- [Bounded storage implementation #55](https://github.com/rwjblue/antennabench/issues/55)
-- [Bounded adapter implementation #56](https://github.com/rwjblue/antennabench/issues/56)
-- [Bounded report implementation #57](https://github.com/rwjblue/antennabench/issues/57)
-- [Hosted boundary decision #11](https://github.com/rwjblue/antennabench/issues/11)
+- [Decision issue #40](https://github.com/antennabench/antennabench/issues/40)
+- [Local conductor tracker #45](https://github.com/antennabench/antennabench/issues/45)
+- [Bounded storage implementation #55](https://github.com/antennabench/antennabench/issues/55)
+- [Bounded adapter implementation #56](https://github.com/antennabench/antennabench/issues/56)
+- [Bounded report implementation #57](https://github.com/antennabench/antennabench/issues/57)
+- [Hosted boundary decision #11](https://github.com/antennabench/antennabench/issues/11)
 - [Decision 0009](0009-use-layered-bundle-validation-profiles.md)
 - [Decision 0010](0010-checkpoint-append-only-live-session-mutations.md)

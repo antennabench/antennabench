@@ -393,8 +393,8 @@ was deferred rather than bundled into the minimum publishing product.
 
 ## References
 
-- [Hosted identity decision #12](https://github.com/rwjblue/antennabench/issues/12)
-- [Hosted sharing tracker #10](https://github.com/rwjblue/antennabench/issues/10)
+- [Hosted identity decision #12](https://github.com/antennabench/antennabench/issues/12)
+- [Hosted sharing tracker #10](https://github.com/antennabench/antennabench/issues/10)
 - [Decision 0001](0001-bundle-is-source-of-truth.md)
 - [Decision 0013](0013-use-an-optional-static-hosted-sharing-adapter.md)
 - [Better Auth Cloudflare D1 support](https://better-auth.com/blog/1-5)

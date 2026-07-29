@@ -5,7 +5,7 @@ Date: 2026-07-28
 ## Status
 
 Accepted. Implementation is pending under
-[#233](https://github.com/rwjblue/antennabench/issues/233).
+[#233](https://github.com/antennabench/antennabench/issues/233).
 
 This decision selects the product and system boundary. It does not select a
 modem implementation, approve a production dependency, change the distributed
@@ -74,7 +74,7 @@ The private release-publishing proof may proceed against the current code and
 companion workflow. Public download promotion waits for the native slice,
 Summary comprehension, trustworthy candidate, documentation, and external
 native-workflow beta gates tracked by
-[#295](https://github.com/rwjblue/antennabench/issues/295).
+[#295](https://github.com/antennabench/antennabench/issues/295).
 
 Before production integration, #233 must resolve:
 
@@ -133,5 +133,5 @@ transmission-ready.
   direct frequency, mode, PTT, and general rig control.
 - [Decision 0021](0021-use-command-verified-antenna-control.md) remains the
   authority for optional antenna-controller commands and read-back.
-- [#293](https://github.com/rwjblue/antennabench/issues/293) defines the first
+- [#293](https://github.com/antennabench/antennabench/issues/293) defines the first
   App Store-ready mobile product within this shared boundary.

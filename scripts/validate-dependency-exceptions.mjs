@@ -14,7 +14,8 @@ const ALLOWED_CATEGORIES = new Set([
 const SEVERITIES = new Set(["critical", "high", "moderate", "low", "informational"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-const ISSUE = /^https:\/\/github\.com\/rwjblue\/antennabench\/issues\/\d+$/;
+const ISSUE =
+  /^https:\/\/github\.com\/antennabench\/antennabench\/issues\/\d+$/;
 const REQUIRED_LICENSES = [
   "0BSD",
   "Apache-2.0",

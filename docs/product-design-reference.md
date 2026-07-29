@@ -151,7 +151,7 @@ close to call" require a later validated inference contract with recorded
 experimental-design gates, a prespecified practical-effect bound, dependence
 and missingness handling, and deterministic simulation coverage. "Winner" and
 unqualified "better antenna" remain prohibited product claims. That deferred
-decision is tracked by [#26](https://github.com/rwjblue/antennabench/issues/26).
+decision is tracked by [#26](https://github.com/antennabench/antennabench/issues/26).
 
 ## V1 Bias
 
@@ -170,7 +170,7 @@ tuning, and WSPRnet upload are not prerequisites. macOS is the first measured
 target, while audio, modem, and evidence interfaces remain reusable by future
 iOS and Android clients. [Decision
 0029](decisions/0029-make-native-wspr-the-primary-product-path.md) records the
-boundary; [#233](https://github.com/rwjblue/antennabench/issues/233) owns its
+boundary; [#233](https://github.com/antennabench/antennabench/issues/233) owns its
 validation and implementation breakdown.
 
 Public promotion waits for the native workflow, an understandable Summary, a
@@ -306,7 +306,7 @@ daily-archive import adds exact ZIP preservation and TX public reports without
 network acquisition. The boundary and RBN collection constraints are selected by
 [Decision 0016](decisions/0016-use-reusable-counterbalanced-transmit-signal-plans.md)
 and tracked in
-[#86](https://github.com/rwjblue/antennabench/issues/86). New WSPR sessions use
+[#86](https://github.com/antennabench/antennabench/issues/86). New WSPR sessions use
 the current schema-v5 envelope, retaining the schema-v4 directed WSPR model
 without requiring a controlled signal plan; existing schema-v3 and schema-v4
 sessions remain readable.

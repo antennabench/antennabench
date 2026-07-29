@@ -83,9 +83,9 @@ bytes before extracting either archive:
 ```bash
 shasum -a 256 -c AntennaBench-<version>-SHA256SUMS
 gh attestation verify AntennaBench-<version>-aarch64-apple-darwin.zip \
-  --repo rwjblue/antennabench
+  --repo antennabench/antennabench
 gh attestation verify AntennaBench-<version>-x86_64-apple-darwin.zip \
-  --repo rwjblue/antennabench
+  --repo antennabench/antennabench
 ```
 
 Choose `aarch64-apple-darwin` for Apple silicon or

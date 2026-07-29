@@ -129,7 +129,7 @@ The 2026-07-14 baseline evaluates 472 locked packages, all from workspace paths
 or crates.io. It has 32 duplicate-version warning families, no source errors,
 and one exact license exception: `webpki-roots 1.0.8` under
 CDLA-Permissive-2.0, tracked by
-[#82](https://github.com/rwjblue/antennabench/issues/82) through 2026-10-12.
+[#82](https://github.com/antennabench/antennabench/issues/82) through 2026-10-12.
 The baseline updated `url` to 2.5.8 and `idna` to 1.1.0 to remove
 RUSTSEC-2024-0421 instead of suppressing it.
 
@@ -163,7 +163,7 @@ The initial fresh audit has one temporary unsound exception:
 RUSTSEC-2024-0429 for Linux-only `glib 0.18.5`, inherited from Tauri's GTK
 stack. The repository has no direct use of the affected iterator API, but does
 not claim it is unreachable throughout the framework. The exception is tracked
-by [#83](https://github.com/rwjblue/antennabench/issues/83), expires on
+by [#83](https://github.com/antennabench/antennabench/issues/83), expires on
 2026-08-13, and becomes a hard failure when expired or unused.
 
 ## Focused Lockfile Updates

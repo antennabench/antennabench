@@ -2,8 +2,8 @@
 
 Date: 2026-07-20
 
-Issues: [#241](https://github.com/rwjblue/antennabench/issues/241),
-[#242](https://github.com/rwjblue/antennabench/issues/242)
+Issues: [#241](https://github.com/antennabench/antennabench/issues/241),
+[#242](https://github.com/antennabench/antennabench/issues/242)
 
 ## Status
 
