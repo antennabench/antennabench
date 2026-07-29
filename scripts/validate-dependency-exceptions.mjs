@@ -185,10 +185,19 @@ export function validateFreshGate({ advisoryTask, releaseTask, workflow }) {
   if (!/^\s+- main$/m.test(workflow) || !/^\s+- cron: "\d+ \d+ \* \* \*"$/m.test(workflow)) {
     errors.push("rust-supply-chain workflow: main and daily cadence must be explicit");
   }
+  if (/^  pull_request:\s*\n\s+paths:/m.test(workflow)) {
+    errors.push("rust-supply-chain workflow: required PR status must not be path-filtered");
+  }
   for (const dependencyPath of ["Cargo.lock", "Cargo.toml"]) {
     if (!workflow.includes(`"${dependencyPath}"`)) {
-      errors.push(`rust-supply-chain workflow: PR paths must include ${dependencyPath}`);
+      errors.push(`rust-supply-chain workflow: PR scope must include ${dependencyPath}`);
     }
+  }
+  if (!workflow.includes('git diff --quiet "$BASE_SHA" "$HEAD_SHA"')) {
+    errors.push("rust-supply-chain workflow: PR scope must fail closed on the reviewed diff");
+  }
+  if (!workflow.includes("if: steps.scope.outputs.required == 'true'")) {
+    errors.push("rust-supply-chain workflow: fresh verification must follow the reviewed PR scope");
   }
   if (!workflow.includes("run: mise run release-preflight")) {
     errors.push("rust-supply-chain workflow: must call the complete release preflight");

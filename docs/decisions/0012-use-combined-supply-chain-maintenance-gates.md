@@ -354,6 +354,11 @@ check. Moderate-or-higher introduced vulnerabilities block dependency review;
 the Rust policy may be stricter for malicious, unsound, yanked, source, and
 license findings.
 
+The supply-chain workflow emits one stable required status for every pull
+request. It evaluates the reviewed base-to-head diff and runs the networked
+fresh advisory preflight only when that diff can affect Rust dependency policy.
+Diff failures fail closed rather than producing a successful skipped result.
+
 No pull-request job receives release secrets or write permission.
 
 ### Main And Schedule

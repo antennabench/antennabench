@@ -114,9 +114,6 @@ test("fresh advisory and release workflow failures cannot be suppressed", () => 
       "mise run supply-chain\nmise run dependency-policy\nmise run advisory-fresh\n",
     workflow: `on:
   pull_request:
-    paths:
-      - "Cargo.lock"
-      - "Cargo.toml"
   push:
     branches:
       - main
@@ -127,7 +124,15 @@ test("fresh advisory and release workflow failures cannot be suppressed", () => 
 jobs:
   preflight:
     steps:
-      - run: mise run release-preflight
+      - id: scope
+        run: |
+          git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \\
+            "Cargo.lock" \\
+            "Cargo.toml"
+      - if: steps.scope.outputs.required == 'true'
+        run: setup
+      - if: steps.scope.outputs.required == 'true'
+        run: mise run release-preflight
 `,
   };
   assert.deepEqual(validateFreshGate(valid), []);
@@ -141,6 +146,21 @@ jobs:
   assert.ok(
     validateFreshGate({ ...valid, releaseTask: valid.releaseTask.replace("mise run advisory-fresh\n", "") })
       .length > 0,
+  );
+  assert.ok(
+    validateFreshGate({
+      ...valid,
+      workflow: valid.workflow.replace(
+        "  pull_request:\n",
+        '  pull_request:\n    paths:\n      - "Cargo.lock"\n',
+      ),
+    }).some((error) => /must not be path-filtered/.test(error)),
+  );
+  assert.ok(
+    validateFreshGate({
+      ...valid,
+      workflow: valid.workflow.replace('git diff --quiet "$BASE_SHA" "$HEAD_SHA"', "git diff --name-only"),
+    }).some((error) => /fail closed/.test(error)),
   );
 });
 
