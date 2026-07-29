@@ -270,8 +270,8 @@ bounded storage, explicit semantics, and future reanalysis.
 
 ## References
 
-- [Decision issue #21](https://github.com/rwjblue/antennabench/issues/21)
-- [Core propagation implementation #20](https://github.com/rwjblue/antennabench/issues/20)
+- [Decision issue #21](https://github.com/antennabench/antennabench/issues/21)
+- [Core propagation implementation #20](https://github.com/antennabench/antennabench/issues/20)
 - [SWPC data access](https://www.spaceweather.gov/content/data-access)
 - [SWPC solar-wind observations](https://www.spaceweather.gov/products/solar-wind)
 - [SWPC GOES X-ray flux](https://www.spaceweather.gov/products/goes-x-ray-flux)

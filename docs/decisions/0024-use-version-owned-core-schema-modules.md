@@ -81,7 +81,7 @@ documentation and unchanged older-version compatibility tests.
 
 - Imports become longer but immediately disclose schema ownership.
 - The workspace-wide migration in
-  [#146](https://github.com/rwjblue/antennabench/issues/146) is mechanical and
+  [#146](https://github.com/antennabench/antennabench/issues/146) is mechanical and
   intentionally follows the active feature work named by that issue.
 - Removing a flat Rust re-export is an API change for Rust consumers, but this
   pre-1.0 workspace migration does not alter serialized data or runtime

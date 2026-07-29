@@ -176,7 +176,7 @@ than treating this candidate order as permanent approval.
 ## References
 
 - [Decision 0001](0001-bundle-is-source-of-truth.md)
-- [Issue #7](https://github.com/rwjblue/antennabench/issues/7)
+- [Issue #7](https://github.com/antennabench/antennabench/issues/7)
 - [rusqlite](https://github.com/rusqlite/rusqlite)
 - [SQLx](https://github.com/transact-rs/sqlx)
 - [Diesel SQLite documentation](https://docs.diesel.rs/main/diesel/sqlite/index.html)

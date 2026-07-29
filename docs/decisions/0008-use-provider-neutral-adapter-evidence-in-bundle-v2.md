@@ -150,9 +150,9 @@ workspace adapters keep the first boundary reviewable and deterministic.
 
 ## References
 
-- [Decision issue #27](https://github.com/rwjblue/antennabench/issues/27)
-- [RBN archive adapter #29](https://github.com/rwjblue/antennabench/issues/29)
-- [Mode-stratification issue #28](https://github.com/rwjblue/antennabench/issues/28)
+- [Decision issue #27](https://github.com/antennabench/antennabench/issues/27)
+- [RBN archive adapter #29](https://github.com/antennabench/antennabench/issues/29)
+- [Mode-stratification issue #28](https://github.com/antennabench/antennabench/issues/28)
 - [Decision 0001](0001-bundle-is-source-of-truth.md)
 - [Decision 0006](0006-capture-rich-typed-propagation-evidence.md)
 - [Serde enum representations](https://serde.rs/enum-representations.html)

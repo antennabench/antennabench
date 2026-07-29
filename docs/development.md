@@ -16,7 +16,7 @@ Xcode Command Line Tools and Mise, then clone and initialize the repository:
 
 ```bash
 xcode-select --install
-git clone https://github.com/rwjblue/antennabench.git
+git clone https://github.com/antennabench/antennabench.git
 cd antennabench
 mise install
 npm ci

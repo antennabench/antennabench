@@ -135,7 +135,7 @@ exception gates run through `mise run dependency-policy` and
 with the workflow/tool-pin checks and always fetches the RustSec database.
 Dependabot alerts, CodeQL, Action restrictions, and the main ruleset still
 require the explicit owner action in
-[#60](https://github.com/rwjblue/antennabench/issues/60). See
+[#60](https://github.com/antennabench/antennabench/issues/60). See
 [Supply-Chain Updates](supply-chain.md) for the review and update procedure.
 
 ## Verification

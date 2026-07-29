@@ -25,7 +25,7 @@ function validException(overrides = {}) {
     rationale: "No fixed compatible release is available during this review window.",
     mitigation: "Keep the feature disabled and update through the linked tracking issue.",
     owner: "@rwjblue",
-    issue: "https://github.com/rwjblue/antennabench/issues/999",
+    issue: "https://github.com/antennabench/antennabench/issues/999",
     approved_on: "2026-07-01",
     expires_on: "2026-07-31",
     enforcement_reference: "RUSTSEC-2026-0001",

@@ -311,7 +311,8 @@ export function publishDraft({ directory, notesFile, root, tag }) {
 
 export function writeReleaseNotes({ filename, root, tag }) {
   const context = validateTagContext({ root, tag });
-  const repository = process.env.GITHUB_REPOSITORY ?? "rwjblue/antennabench";
+  const repository =
+    process.env.GITHUB_REPOSITORY ?? "antennabench/antennabench";
   const text = `# ${PRODUCT} ${context.version}\n\n` +
     `Source: [${context.commit}](https://github.com/${repository}/commit/${context.commit})\n\n` +
     `This draft contains separate macOS 15+ archives for Apple silicon and Intel Macs. ` +

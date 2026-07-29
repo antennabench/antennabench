@@ -171,8 +171,8 @@ affects transmission instructions and evidence interpretation.
 
 - [RBN: How to get spotted](https://beta.reversebeacon.net/pages/How%2Bto%2Bget%2Bspotted%2Bby%2Bthe%2BRBN%2B44)
 - [RBN raw data](https://www.reversebeacon.net/raw_data/)
-- [Decision issue #30](https://github.com/rwjblue/antennabench/issues/30)
-- [Schema-v3 implementation #86](https://github.com/rwjblue/antennabench/issues/86)
-- [RBN archive adapter #29](https://github.com/rwjblue/antennabench/issues/29)
-- [Transmit execution decision #32](https://github.com/rwjblue/antennabench/issues/32)
-- [Optional rig decision #14](https://github.com/rwjblue/antennabench/issues/14)
+- [Decision issue #30](https://github.com/antennabench/antennabench/issues/30)
+- [Schema-v3 implementation #86](https://github.com/antennabench/antennabench/issues/86)
+- [RBN archive adapter #29](https://github.com/antennabench/antennabench/issues/29)
+- [Transmit execution decision #32](https://github.com/antennabench/antennabench/issues/32)
+- [Optional rig decision #14](https://github.com/antennabench/antennabench/issues/14)

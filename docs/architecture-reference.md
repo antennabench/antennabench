@@ -358,7 +358,7 @@ through checked byte writers. Desktop state retains one summary/report pair,
 admits one foreground operation, caps both IPC payloads, and keeps storage-safe
 lossless export independent from report eligibility. Hosted upload and archive
 limits remain a separate decision in
-[#11](https://github.com/rwjblue/antennabench/issues/11).
+[#11](https://github.com/antennabench/antennabench/issues/11).
 
 The desktop Active Run read model is deliberately smaller than the durable
 bundle. Activation or recovery creates an in-memory projection containing only
@@ -704,7 +704,7 @@ The durable boundaries are:
   The selected primary product path adds native audio receive/decode and
   RF-ready transmit audio under
   [Decision 0029](decisions/0029-make-native-wspr-the-primary-product-path.md)
-  and [#233](https://github.com/rwjblue/antennabench/issues/233). Its first
+  and [#233](https://github.com/antennabench/antennabench/issues/233). Its first
   station boundary is explicit operator arming, manual tuning, and VOX; CAT,
   PTT, automatic tuning, and provider upload are not prerequisites. Native local
   evidence remains useful offline. Audio, modem, and evidence interfaces must
@@ -750,8 +750,8 @@ The durable boundaries are:
   Neither path
   makes public reports a session prerequisite; see
   [Decision 0015](decisions/0015-use-an-import-first-wspr-public-spot-boundary.md),
-  [#84](https://github.com/rwjblue/antennabench/issues/84), and
-  [#85](https://github.com/rwjblue/antennabench/issues/85).
+  [#84](https://github.com/antennabench/antennabench/issues/84), and
+  [#85](https://github.com/antennabench/antennabench/issues/85).
 - Live WSJT-X UDP is the direct/local receive source. It is required before a
   receive-capable schema-v4 run only when WSPR.live is disabled, remains
   optional when WSPR.live is enabled, and may run concurrently. New local
@@ -786,7 +786,7 @@ transmit signal plans is recorded by
 [Decision 0016](decisions/0016-use-reusable-counterbalanced-transmit-signal-plans.md).
 The schema-v3 wire model, validation, checkpoint persistence, manifest dispatch,
 lossless export, and deterministic v1/v2 migration are implemented under
-[#86](https://github.com/rwjblue/antennabench/issues/86). Desktop authoring and
+[#86](https://github.com/antennabench/antennabench/issues/86). Desktop authoring and
 conductor integration are implemented. Schema-v3 evidence persistence also
 commits attachment-backed adapter records and observations as one deterministic
 cross-stream mutation. Exact mutation replay is idempotent, conflicting reuse
@@ -798,9 +798,9 @@ counterbalanced RX/TX authoring while retaining schema-v3 reads.
 The first optional rig-integration milestone is passive, advisory WSJT-X status
 comparison under
 [Decision 0019](decisions/0019-observe-rig-state-before-control.md). It is
-tracked by [#14](https://github.com/rwjblue/antennabench/issues/14); any direct
+tracked by [#14](https://github.com/antennabench/antennabench/issues/14); any direct
 control requires a separately approved issue. The focused advisory-warning
-implementation is [#107](https://github.com/rwjblue/antennabench/issues/107).
+implementation is [#107](https://github.com/antennabench/antennabench/issues/107).
 [Decision 0021](decisions/0021-use-command-verified-antenna-control.md) adds the
 schema-v5 portable policy, typed bounded rig invocation evidence, readiness
 basis, and atomic rig-plus-event checkpoint foundation. Local executable

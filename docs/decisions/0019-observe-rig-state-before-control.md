@@ -152,5 +152,5 @@ or unattended transmission.
 - [Hamlib project](https://hamlib.github.io/)
 - [rigctld manual](https://hamlib.sourceforge.net/html/rigctld.1.html)
 - [Hamlib license](https://hamlib.sourceforge.net/manuals/4.7/LICENSE.html)
-- [Issue #14](https://github.com/rwjblue/antennabench/issues/14)
-- [Advisory warning implementation #107](https://github.com/rwjblue/antennabench/issues/107)
+- [Issue #14](https://github.com/antennabench/antennabench/issues/14)
+- [Advisory warning implementation #107](https://github.com/antennabench/antennabench/issues/107)

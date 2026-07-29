@@ -388,11 +388,11 @@ adapter, and explicit tail recovery.
 
 ## References
 
-- [Decision issue #39](https://github.com/rwjblue/antennabench/issues/39)
-- [Local conductor tracker #45](https://github.com/rwjblue/antennabench/issues/45)
-- [Schema-v2 foundation #46](https://github.com/rwjblue/antennabench/issues/46)
-- [Checkpointed persistence and recovery #53](https://github.com/rwjblue/antennabench/issues/53)
-- [Operator lifecycle and correction semantics #54](https://github.com/rwjblue/antennabench/issues/54)
+- [Decision issue #39](https://github.com/antennabench/antennabench/issues/39)
+- [Local conductor tracker #45](https://github.com/antennabench/antennabench/issues/45)
+- [Schema-v2 foundation #46](https://github.com/antennabench/antennabench/issues/46)
+- [Checkpointed persistence and recovery #53](https://github.com/antennabench/antennabench/issues/53)
+- [Operator lifecycle and correction semantics #54](https://github.com/antennabench/antennabench/issues/54)
 - [Decision 0001](0001-bundle-is-source-of-truth.md)
 - [Decision 0008](0008-use-provider-neutral-adapter-evidence-in-bundle-v2.md)
 - [Rust `File` synchronization and locking](https://doc.rust-lang.org/stable/std/fs/struct.File.html)
