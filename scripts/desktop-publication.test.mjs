@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planDraftMutation } from "./desktop-publication.mjs";
+import { planDraftMutation, releaseNotesText } from "./desktop-publication.mjs";
 
 const ASSETS = [
   "AntennaBench-0.1.0-SHA256SUMS",
@@ -31,5 +31,20 @@ test("draft retry policy rejects publication and partial or unexpected assets", 
   assert.throws(
     () => planDraftMutation({ isDraft: true, assets: [...ASSETS, "extra.dmg"].map((name) => ({ name })) }, ASSETS),
     /partial or mismatched/,
+  );
+});
+
+test("draft notes identify the packaged third-party notices", () => {
+  const notes = releaseNotesText({
+    context: {
+      commit: "0123456789abcdef0123456789abcdef01234567",
+      version: "0.1.0",
+    },
+    repository: "antennabench/antennabench",
+  });
+  assert.match(notes, /complete CDLA-Permissive-2\.0 agreement/);
+  assert.match(
+    notes,
+    /AntennaBench\.app\/Contents\/Resources\/THIRD_PARTY_NOTICES\.txt/,
   );
 });

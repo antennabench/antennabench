@@ -28,9 +28,9 @@
         "name": "webpki-roots",
         "version": "1.0.8"
       },
-      "reachability": "The root data is used by reqwest and hyper-rustls when the optional NOAA HTTPS adapter performs a live request.",
-      "rationale": "This is the only locked license outside the general allowlist and it is restricted to the exact CA-root data crate version.",
-      "mitigation": "Track distribution notice obligations in issue 82 and retain the license text or select a reviewed native-root strategy before expiry.",
+      "reachability": "The CA-root data is compiled into the desktop application through reqwest and hyper-rustls for both the optional NOAA propagation adapter and WSPR.live HTTPS acquisition.",
+      "rationale": "This is the only locked license outside the general allowlist. The exact crate and version remain narrow while release verification requires the reviewed agreement text in every packaged application.",
+      "mitigation": "Issue 82 records owner review. Both macOS application bundles include the complete upstream agreement and attribution in THIRD_PARTY_NOTICES.txt, and the release inspector rejects missing or altered notice bytes.",
       "owner": "@rwjblue",
       "issue": "https://github.com/antennabench/antennabench/issues/82",
       "approved_on": "2026-07-14",

@@ -128,9 +128,13 @@ mise run dependency-policy
 The 2026-07-14 baseline evaluates 472 locked packages, all from workspace paths
 or crates.io. It has 32 duplicate-version warning families, no source errors,
 and one exact license exception: `webpki-roots 1.0.8` under
-CDLA-Permissive-2.0, tracked by
+CDLA-Permissive-2.0, reviewed in
 [#82](https://github.com/antennabench/antennabench/issues/82) through 2026-10-12.
-The baseline updated `url` to 2.5.8 and `idna` to 1.1.0 to remove
+Its CA-root data is runtime-reachable through both NOAA and WSPR.live HTTPS.
+Every macOS release application packages the complete upstream agreement and
+attribution in `Contents/Resources/THIRD_PARTY_NOTICES.txt`; release inspection
+rejects missing or altered notice bytes before and after publication. The
+baseline updated `url` to 2.5.8 and `idna` to 1.1.0 to remove
 RUSTSEC-2024-0421 instead of suppressing it.
 
 ## Fresh Advisory And Release Gate
