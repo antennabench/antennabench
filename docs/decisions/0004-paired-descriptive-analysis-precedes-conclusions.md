@@ -267,16 +267,16 @@ coverage label is `moderate`.
 
 ## Follow-up Work
 
-- [#22](https://github.com/rwjblue/antennabench/issues/22) clarifies
+- [#22](https://github.com/antennabench/antennabench/issues/22) clarifies
   operator-facing evidence-coverage terminology without changing thresholds or
   serialized APIs.
-- [#23](https://github.com/rwjblue/antennabench/issues/23) adds the
+- [#23](https://github.com/antennabench/antennabench/issues/23) adds the
   renderer-neutral paired descriptive model and adversarial synthetic coverage.
-- [#25](https://github.com/rwjblue/antennabench/issues/25) renders the initial
+- [#25](https://github.com/antennabench/antennabench/issues/25) renders the initial
   overlap, quality-timeline, paired-difference, and SNR-over-time diagnostics.
-- [#24](https://github.com/rwjblue/antennabench/issues/24) adds the
+- [#24](https://github.com/antennabench/antennabench/issues/24) adds the
   lower-priority distance and azimuth views after the initial renderer.
-- [#26](https://github.com/rwjblue/antennabench/issues/26) retains the deferred
+- [#26](https://github.com/antennabench/antennabench/issues/26) retains the deferred
   uncertainty and conclusion-policy decision; it is intentionally not
   agent-ready until paired data and suitable design evidence exist.
 

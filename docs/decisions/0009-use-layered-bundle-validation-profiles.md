@@ -347,12 +347,12 @@ than the version number alone.
 
 ## References
 
-- [Decision issue #38](https://github.com/rwjblue/antennabench/issues/38)
-- [Local conductor tracker #45](https://github.com/rwjblue/antennabench/issues/45)
-- [Bundle schema version 2 implementation #46](https://github.com/rwjblue/antennabench/issues/46)
-- [Crash-safe mutation and event decision #39](https://github.com/rwjblue/antennabench/issues/39)
-- [Resource-limit decision #40](https://github.com/rwjblue/antennabench/issues/40)
-- [Hosted boundary decision #11](https://github.com/rwjblue/antennabench/issues/11)
+- [Decision issue #38](https://github.com/antennabench/antennabench/issues/38)
+- [Local conductor tracker #45](https://github.com/antennabench/antennabench/issues/45)
+- [Bundle schema version 2 implementation #46](https://github.com/antennabench/antennabench/issues/46)
+- [Crash-safe mutation and event decision #39](https://github.com/antennabench/antennabench/issues/39)
+- [Resource-limit decision #40](https://github.com/antennabench/antennabench/issues/40)
+- [Hosted boundary decision #11](https://github.com/antennabench/antennabench/issues/11)
 - [Decision 0001](0001-bundle-is-source-of-truth.md)
 - [Decision 0008](0008-use-provider-neutral-adapter-evidence-in-bundle-v2.md)
 - [RFC 8259: JSON](https://www.rfc-editor.org/rfc/rfc8259.html)

@@ -135,7 +135,7 @@ exception gates run through `mise run dependency-policy` and
 with the workflow/tool-pin checks and always fetches the RustSec database.
 Dependabot alerts, CodeQL, Action restrictions, and the main ruleset still
 require the explicit owner action in
-[#60](https://github.com/rwjblue/antennabench/issues/60). See
+[#60](https://github.com/antennabench/antennabench/issues/60). See
 [Supply-Chain Updates](supply-chain.md) for the review and update procedure.
 
 ## Verification
@@ -153,8 +153,9 @@ artifacts instead of compiling parallel flag-variant artifact sets.
 `mise run ci` additionally runs toolchain, workflow-input, exception-expiry,
 license, source, wildcard, and duplicate policy. It deliberately does not make
 ordinary CI depend on a fresh network advisory fetch; the separate read-only
-Rust supply-chain workflow supplies that gate on dependency pull requests,
-every main push, daily, on demand, and as the reusable release preflight.
+Rust supply-chain workflow emits its required status on every pull request and
+runs the fresh gate for dependency-affecting diffs, every main push, daily, on
+demand, and as the reusable release preflight.
 
 The WSJT-X live adapter tests use purpose-built protocol datagrams documented
 under `fixtures/wsjtx/udp/`; no operator capture or third-party spot data is

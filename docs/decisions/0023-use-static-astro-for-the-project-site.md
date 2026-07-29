@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-17
-- Issues: [#139](https://github.com/rwjblue/antennabench/issues/139), [#70](https://github.com/rwjblue/antennabench/issues/70), [#73](https://github.com/rwjblue/antennabench/issues/73)
+- Issues: [#139](https://github.com/antennabench/antennabench/issues/139), [#70](https://github.com/antennabench/antennabench/issues/70), [#73](https://github.com/antennabench/antennabench/issues/73)
 
 ## Context
 

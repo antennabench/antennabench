@@ -135,7 +135,7 @@ Captured fixtures and pure parsing are retained as the implementation sequence.
 
 ## References
 
-- [Decision issue #6](https://github.com/rwjblue/antennabench/issues/6)
+- [Decision issue #6](https://github.com/antennabench/antennabench/issues/6)
 - [SWPC data access](https://www.spaceweather.gov/content/data-access)
 - [F10.7 cm radio emissions](https://www.spaceweather.gov/phenomena/f107-cm-radio-emissions)
 - [Planetary K-index](https://www.spaceweather.gov/products/planetary-k-index)

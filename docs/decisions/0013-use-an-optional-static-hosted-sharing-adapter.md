@@ -534,9 +534,9 @@ weakening the offline product.
 
 ## References
 
-- [Hosted boundary decision #11](https://github.com/rwjblue/antennabench/issues/11)
-- [Hosted sharing tracker #10](https://github.com/rwjblue/antennabench/issues/10)
-- [Hosted identity decision #12](https://github.com/rwjblue/antennabench/issues/12)
+- [Hosted boundary decision #11](https://github.com/antennabench/antennabench/issues/11)
+- [Hosted sharing tracker #10](https://github.com/antennabench/antennabench/issues/10)
+- [Hosted identity decision #12](https://github.com/antennabench/antennabench/issues/12)
 - [Decision 0001](0001-bundle-is-source-of-truth.md)
 - [Decision 0009](0009-use-layered-bundle-validation-profiles.md)
 - [Decision 0011](0011-use-a-fixed-bounded-local-resource-profile.md)

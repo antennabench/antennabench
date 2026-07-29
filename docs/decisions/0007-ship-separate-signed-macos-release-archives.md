@@ -257,7 +257,7 @@ application archives, release manifest, and checksum file. User and operator
 documentation includes both:
 
 - `shasum -a 256 -c AntennaBench-{version}-SHA256SUMS`; and
-- `gh attestation verify <asset> -R rwjblue/antennabench`.
+- `gh attestation verify <asset> -R antennabench/antennabench`.
 
 GitHub immutable releases will be enabled before the first public publication.
 The workflow follows GitHub's draft-first sequence: create the draft, attach and
@@ -372,11 +372,11 @@ an existing reviewed tag, draft-first validation, and immutable publication.
 
 ## References
 
-- [Decision issue #34](https://github.com/rwjblue/antennabench/issues/34)
-- [Release tracking issue #33](https://github.com/rwjblue/antennabench/issues/33)
-- [Artifact construction issue #35](https://github.com/rwjblue/antennabench/issues/35)
-- [Credentialed publication issue #36](https://github.com/rwjblue/antennabench/issues/36)
-- [Supply-chain decision #44](https://github.com/rwjblue/antennabench/issues/44)
+- [Decision issue #34](https://github.com/antennabench/antennabench/issues/34)
+- [Release tracking issue #33](https://github.com/antennabench/antennabench/issues/33)
+- [Artifact construction issue #35](https://github.com/antennabench/antennabench/issues/35)
+- [Credentialed publication issue #36](https://github.com/antennabench/antennabench/issues/36)
+- [Supply-chain decision #44](https://github.com/antennabench/antennabench/issues/44)
 - [Decision 0012](0012-use-combined-supply-chain-maintenance-gates.md)
 - [Tauri distribution and versioning](https://v2.tauri.app/distribute/)
 - [Tauri macOS signing and notarization](https://v2.tauri.app/distribute/sign/macos/)

@@ -298,8 +298,8 @@ contract.
 selects one fixed first-product profile, `local-standard-v1`. It is an
 operational policy rather than a schema invariant. Bundle storage enforces its
 filesystem portion; adapter, analysis/report, and desktop-delivery enforcement
-are tracked separately by [#56](https://github.com/rwjblue/antennabench/issues/56)
-and [#57](https://github.com/rwjblue/antennabench/issues/57).
+are tracked separately by [#56](https://github.com/antennabench/antennabench/issues/56)
+and [#57](https://github.com/antennabench/antennabench/issues/57).
 
 The selected modeled-data limits are 4 MiB per root JSON file, 256 KiB per
 JSONL line, 128 MiB and 250,000 records per JSONL stream, and 256 MiB plus

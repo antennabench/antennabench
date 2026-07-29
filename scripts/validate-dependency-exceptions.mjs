@@ -14,7 +14,8 @@ const ALLOWED_CATEGORIES = new Set([
 const SEVERITIES = new Set(["critical", "high", "moderate", "low", "informational"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-const ISSUE = /^https:\/\/github\.com\/rwjblue\/antennabench\/issues\/\d+$/;
+const ISSUE =
+  /^https:\/\/github\.com\/antennabench\/antennabench\/issues\/\d+$/;
 const REQUIRED_LICENSES = [
   "0BSD",
   "Apache-2.0",
@@ -184,10 +185,19 @@ export function validateFreshGate({ advisoryTask, releaseTask, workflow }) {
   if (!/^\s+- main$/m.test(workflow) || !/^\s+- cron: "\d+ \d+ \* \* \*"$/m.test(workflow)) {
     errors.push("rust-supply-chain workflow: main and daily cadence must be explicit");
   }
+  if (/^  pull_request:\s*\n\s+paths:/m.test(workflow)) {
+    errors.push("rust-supply-chain workflow: required PR status must not be path-filtered");
+  }
   for (const dependencyPath of ["Cargo.lock", "Cargo.toml"]) {
     if (!workflow.includes(`"${dependencyPath}"`)) {
-      errors.push(`rust-supply-chain workflow: PR paths must include ${dependencyPath}`);
+      errors.push(`rust-supply-chain workflow: PR scope must include ${dependencyPath}`);
     }
+  }
+  if (!workflow.includes('git diff --quiet "$BASE_SHA" "$HEAD_SHA"')) {
+    errors.push("rust-supply-chain workflow: PR scope must fail closed on the reviewed diff");
+  }
+  if (!workflow.includes("if: steps.scope.outputs.required == 'true'")) {
+    errors.push("rust-supply-chain workflow: fresh verification must follow the reviewed PR scope");
   }
   if (!workflow.includes("run: mise run release-preflight")) {
     errors.push("rust-supply-chain workflow: must call the complete release preflight");

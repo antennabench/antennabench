@@ -46,9 +46,9 @@ installation, launch, report, and export behavior.
 This phase proves the release machinery. It does not publish or promote the
 current companion workflow.
 
-Tracking: [#290](https://github.com/rwjblue/antennabench/issues/290),
-[#60](https://github.com/rwjblue/antennabench/issues/60), and
-[#36](https://github.com/rwjblue/antennabench/issues/36).
+Tracking: [#290](https://github.com/antennabench/antennabench/issues/290),
+[#60](https://github.com/antennabench/antennabench/issues/60), and
+[#36](https://github.com/antennabench/antennabench/issues/36).
 
 ### 2. Make WSPR Native
 
@@ -66,7 +66,7 @@ Decoder quality, SNR/drift compatibility, RF conformance, licensing,
 distribution, supply-chain, privacy, and bounded-resource questions are gates,
 not details to defer until packaging. [Decision
 0029](decisions/0029-make-native-wspr-the-primary-product-path.md) records this
-direction; [#233](https://github.com/rwjblue/antennabench/issues/233) owns the
+direction; [#233](https://github.com/antennabench/antennabench/issues/233) owns the
 validation and implementation breakdown.
 
 ### 3. Make The Product Obvious
@@ -80,10 +80,10 @@ Lightweight rolling feedback replaces a formal artifact-pinning exercise.
 Review sessions record the application revision or stable report URL and turn
 material misunderstandings into focused work.
 
-Tracking: [#291](https://github.com/rwjblue/antennabench/issues/291),
-[#292](https://github.com/rwjblue/antennabench/issues/292),
-[#77](https://github.com/rwjblue/antennabench/issues/77), and
-[#266](https://github.com/rwjblue/antennabench/issues/266).
+Tracking: [#291](https://github.com/antennabench/antennabench/issues/291),
+[#292](https://github.com/antennabench/antennabench/issues/292),
+[#77](https://github.com/antennabench/antennabench/issues/77), and
+[#266](https://github.com/antennabench/antennabench/issues/266).
 
 ### 4. Validate The Native Workflow
 
@@ -96,9 +96,9 @@ evidence, interruption/recovery, Summary and Full evidence interpretation, and
 both export paths under the
 [reporter-directed privacy policy](field-testing.md).
 
-Tracking: [#75](https://github.com/rwjblue/antennabench/issues/75),
-[#78](https://github.com/rwjblue/antennabench/issues/78), and
-[#79](https://github.com/rwjblue/antennabench/issues/79).
+Tracking: [#75](https://github.com/antennabench/antennabench/issues/75),
+[#78](https://github.com/antennabench/antennabench/issues/78), and
+[#79](https://github.com/antennabench/antennabench/issues/79).
 
 ### 5. Publish And Promote
 
@@ -107,14 +107,14 @@ external-beta gates pass will AntennaBench publish and promote a macOS preview.
 That release makes the independently verified download the website's primary
 call to action.
 
-Tracking: [#295](https://github.com/rwjblue/antennabench/issues/295).
+Tracking: [#295](https://github.com/antennabench/antennabench/issues/295).
 
 ## Parallel Definition And Communication
 
-- [#293](https://github.com/rwjblue/antennabench/issues/293) defines the first
+- [#293](https://github.com/antennabench/antennabench/issues/293) defines the first
   App Store-ready mobile product with iOS as the first tested target and Android
   preserved in the architecture.
-- [#294](https://github.com/rwjblue/antennabench/issues/294) records and
+- [#294](https://github.com/antennabench/antennabench/issues/294) records and
   publishes a first-comparison walkthrough after the native and Summary
   workflows stabilize.
 - The organization work creates a separate hardware repository for PCB, KiCad,

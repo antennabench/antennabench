@@ -354,6 +354,11 @@ check. Moderate-or-higher introduced vulnerabilities block dependency review;
 the Rust policy may be stricter for malicious, unsound, yanked, source, and
 license findings.
 
+The supply-chain workflow emits one stable required status for every pull
+request. It evaluates the reviewed base-to-head diff and runs the networked
+fresh advisory preflight only when that diff can affect Rust dependency policy.
+Diff failures fail closed rather than producing a successful skipped result.
+
 No pull-request job receives release secrets or write permission.
 
 ### Main And Schedule
@@ -508,10 +513,10 @@ time-owned maintenance work.
 
 ## References
 
-- [Decision issue #44](https://github.com/rwjblue/antennabench/issues/44)
-- [Action/update implementation #58](https://github.com/rwjblue/antennabench/issues/58)
-- [Rust policy implementation #59](https://github.com/rwjblue/antennabench/issues/59)
-- [Owner settings #60](https://github.com/rwjblue/antennabench/issues/60)
+- [Decision issue #44](https://github.com/antennabench/antennabench/issues/44)
+- [Action/update implementation #58](https://github.com/antennabench/antennabench/issues/58)
+- [Rust policy implementation #59](https://github.com/antennabench/antennabench/issues/59)
+- [Owner settings #60](https://github.com/antennabench/antennabench/issues/60)
 - [Release decision 0007](0007-ship-separate-signed-macos-release-archives.md)
 - [GitHub secure use reference](https://docs.github.com/en/actions/reference/security/secure-use)
 - [GitHub Dependabot version updates](https://docs.github.com/en/code-security/concepts/supply-chain-security/dependabot-version-updates)

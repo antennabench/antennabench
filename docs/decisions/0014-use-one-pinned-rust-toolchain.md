@@ -40,7 +40,7 @@ intentional compiler upgrades remain valuable.
 
 ## References
 
-- [Truthful compatibility issue #42](https://github.com/rwjblue/antennabench/issues/42)
+- [Truthful compatibility issue #42](https://github.com/antennabench/antennabench/issues/42)
 - [Development workflow](../development.md)
 - [Release contract](0007-ship-separate-signed-macos-release-archives.md)
 - [Supply-chain policy](0012-use-combined-supply-chain-maintenance-gates.md)

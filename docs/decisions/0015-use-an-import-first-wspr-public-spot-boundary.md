@@ -11,10 +11,10 @@ Amended: 2026-07-16
 AntennaBench selects WSPR.live's documented, read-only ClickHouse HTTPS
 interface as its first automatic source of bidirectional WSPR public reports.
 The deterministic `FORMAT JSON` importer shipped first in
-[#84](https://github.com/rwjblue/antennabench/issues/84), establishing exact
+[#84](https://github.com/antennabench/antennabench/issues/84), establishing exact
 response preservation, filtering, normalization, replay, atomic persistence,
 and reporting without network availability. The automatic acquisition in
-[#85](https://github.com/rwjblue/antennabench/issues/85) reuses that complete
+[#85](https://github.com/antennabench/antennabench/issues/85) reuses that complete
 evidence boundary; it does not introduce a second parser or normalization path.
 
 The 2026-07-16 amendment expands the fixed query from `tx_sign = station` to
@@ -375,11 +375,11 @@ observations, not in pretending raw formats are identical.
 
 ## References
 
-- [Decision issue #13](https://github.com/rwjblue/antennabench/issues/13)
-- [WSPR.live JSON import adapter #84](https://github.com/rwjblue/antennabench/issues/84)
-- [Automatic WSPR.live acquisition #85](https://github.com/rwjblue/antennabench/issues/85)
-- [RBN tracking issue #31](https://github.com/rwjblue/antennabench/issues/31)
-- [RBN archive adapter #29](https://github.com/rwjblue/antennabench/issues/29)
+- [Decision issue #13](https://github.com/antennabench/antennabench/issues/13)
+- [WSPR.live JSON import adapter #84](https://github.com/antennabench/antennabench/issues/84)
+- [Automatic WSPR.live acquisition #85](https://github.com/antennabench/antennabench/issues/85)
+- [RBN tracking issue #31](https://github.com/antennabench/antennabench/issues/31)
+- [RBN archive adapter #29](https://github.com/antennabench/antennabench/issues/29)
 - [Decision 0008](0008-use-provider-neutral-adapter-evidence-in-bundle-v2.md)
 - [Decision 0011](0011-use-a-fixed-bounded-local-resource-profile.md)
 - [WSJT-X User Guide](https://wsjt.sourceforge.io/wsjtx-main_en.html)
