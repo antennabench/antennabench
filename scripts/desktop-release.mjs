@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const PRODUCT = "AntennaBench";
 const BUNDLE_IDENTIFIER = "com.rwjblue.antennabench";
 const MINIMUM_MACOS = "15.0";
+const THIRD_PARTY_NOTICES = "THIRD_PARTY_NOTICES.txt";
+const THIRD_PARTY_NOTICES_SHA256 = "735de7292f06881314cd7c94270871f67dca34d053f543fc498733205eb6050c";
 const TARGETS = Object.freeze({
   "aarch64-apple-darwin": Object.freeze({
     architecture: "arm64",
@@ -214,8 +216,15 @@ function validateTauriContract(root) {
   if (JSON.stringify(config.bundle?.targets) !== JSON.stringify(["app"])) {
     throw new Error('Tauri bundle targets must be exactly ["app"]');
   }
+  if (JSON.stringify(config.bundle?.resources) !== JSON.stringify([THIRD_PARTY_NOTICES])) {
+    throw new Error(`Tauri bundle resources must contain exactly ${THIRD_PARTY_NOTICES}`);
+  }
   if (config.bundle?.macOS?.minimumSystemVersion !== MINIMUM_MACOS) {
     throw new Error(`Tauri minimum macOS version must be ${MINIMUM_MACOS}`);
+  }
+  const notice = path.join(root, "apps", "desktop", THIRD_PARTY_NOTICES);
+  if (sha256File(notice) !== THIRD_PARTY_NOTICES_SHA256) {
+    throw new Error(`${THIRD_PARTY_NOTICES} does not match the reviewed release notice`);
   }
 }
 
@@ -292,6 +301,21 @@ function inspectSignature(app, trustMode) {
   };
 }
 
+export function inspectThirdPartyNotices(app) {
+  const filename = path.join(app, "Contents", "Resources", THIRD_PARTY_NOTICES);
+  if (!fs.existsSync(filename)) {
+    throw new Error(`packaged third-party notices are missing: ${filename}`);
+  }
+  const sha256 = sha256File(filename);
+  if (sha256 !== THIRD_PARTY_NOTICES_SHA256) {
+    throw new Error(`packaged ${THIRD_PARTY_NOTICES} does not match the reviewed release notice`);
+  }
+  return {
+    filename: THIRD_PARTY_NOTICES,
+    sha256,
+  };
+}
+
 function assertPublishableSignature(signature, source) {
   const requiredTrust = {
     classification: "developer-id",
@@ -356,6 +380,7 @@ function inspectApp(app, { target, version, trustMode }) {
   return {
     architecture: contract.architecture,
     metadata,
+    third_party_notices: inspectThirdPartyNotices(app),
     signature: inspectSignature(app, trustMode),
   };
 }

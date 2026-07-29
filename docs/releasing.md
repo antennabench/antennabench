@@ -73,7 +73,10 @@ GitHub build provenance is generated for all four files before the draft
 mutation job receives `contents: write`. That is the only write permission in
 the workflow. The final native jobs download the actual draft assets and repeat
 checksum, manifest, ZIP extraction, embedded metadata, architecture, signature,
-staple, Gatekeeper, and attestation checks.
+staple, Gatekeeper, packaged third-party-notice, and attestation checks. Each
+application must contain the exact reviewed
+`Contents/Resources/THIRD_PARTY_NOTICES.txt`, including the complete
+CDLA-Permissive-2.0 agreement for the packaged CA-root data.
 
 ## Independent Download And Installation Check
 

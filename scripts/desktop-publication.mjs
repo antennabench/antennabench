@@ -313,7 +313,13 @@ export function writeReleaseNotes({ filename, root, tag }) {
   const context = validateTagContext({ root, tag });
   const repository =
     process.env.GITHUB_REPOSITORY ?? "antennabench/antennabench";
-  const text = `# ${PRODUCT} ${context.version}\n\n` +
+  const text = releaseNotesText({ context, repository });
+  fs.mkdirSync(path.dirname(filename), { recursive: true });
+  fs.writeFileSync(filename, text);
+}
+
+export function releaseNotesText({ context, repository }) {
+  return `# ${PRODUCT} ${context.version}\n\n` +
     `Source: [${context.commit}](https://github.com/${repository}/commit/${context.commit})\n\n` +
     `This draft contains separate macOS 15+ archives for Apple silicon and Intel Macs. ` +
     `Download the ZIP matching your Mac, verify the checksums and GitHub attestation, then extract it and move ${PRODUCT}.app to Applications.\n\n` +
@@ -322,10 +328,9 @@ export function writeReleaseNotes({ filename, root, tag }) {
     `gh attestation verify ${PRODUCT}-${context.version}-aarch64-apple-darwin.zip --repo ${repository}\n` +
     `gh attestation verify ${PRODUCT}-${context.version}-x86_64-apple-darwin.zip --repo ${repository}\n` +
     "```\n\n" +
+    `Third-party notices, including the complete CDLA-Permissive-2.0 agreement for the packaged CA-root data, are included in ${PRODUCT}.app/Contents/Resources/THIRD_PARTY_NOTICES.txt.\n\n` +
     "Known limitations: macOS 15 or later is required; Windows, Linux, automatic updates, the Mac App Store, and package-manager installation are not included.\n\n" +
     "This is a private draft verification candidate. Stable publication requires explicit owner promotion after clean-system install, launch, and canonical open/report/export/reopen verification.\n";
-  fs.mkdirSync(path.dirname(filename), { recursive: true });
-  fs.writeFileSync(filename, text);
 }
 
 export async function verifyDraft({ directory, root, tag, target }) {

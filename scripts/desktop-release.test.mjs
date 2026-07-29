@@ -12,12 +12,15 @@ import {
   assertVersionTag,
   canonicalJson,
   checksumLines,
+  inspectThirdPartyNotices,
   readCompleteArtifactSet,
   resolveReleaseIdentityTag,
   targetContract,
   validateStagedEntries,
   withAtomicDirectory,
 } from "./desktop-release.mjs";
+
+const NOTICE_SHA256 = "735de7292f06881314cd7c94270871f67dca34d053f543fc498733205eb6050c";
 
 test("accepts stable versions and exact v-prefixed tags", () => {
   assert.equal(assertStableVersion("0.1.0"), "0.1.0");
@@ -98,6 +101,34 @@ test("staging rejects unexpected public assets", () => {
     );
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("packaged third-party notices are exact and tamper evident", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-release-notices-"));
+  const resources = path.join(root, "AntennaBench.app", "Contents", "Resources");
+  fs.mkdirSync(resources, { recursive: true });
+  const source = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "apps",
+    "desktop",
+    "THIRD_PARTY_NOTICES.txt",
+  );
+  const packaged = path.join(resources, "THIRD_PARTY_NOTICES.txt");
+  try {
+    fs.copyFileSync(source, packaged);
+    assert.deepEqual(inspectThirdPartyNotices(path.join(root, "AntennaBench.app")), {
+      filename: "THIRD_PARTY_NOTICES.txt",
+      sha256: NOTICE_SHA256,
+    });
+    fs.appendFileSync(packaged, "\ntampered\n");
+    assert.throws(
+      () => inspectThirdPartyNotices(path.join(root, "AntennaBench.app")),
+      /does not match the reviewed release notice/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

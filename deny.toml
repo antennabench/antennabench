@@ -37,6 +37,7 @@ allow = [
   "Zlib",
 ]
 exceptions = [
+  # The exact reviewed notice is packaged and verified under issue 82.
   { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots@1.0.8" },
 ]
 unused-license-exception = "deny"
