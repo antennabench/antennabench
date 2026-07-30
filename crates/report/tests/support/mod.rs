@@ -256,7 +256,7 @@ impl ReportDocument {
         let visible_text = self.default_visible_text("body");
         let visible_words = normalized_words(&visible_text);
         let primary_finding =
-            normalized_words(&self.default_visible_text(".summary-interpretation"));
+            normalized_words(&self.default_visible_text(".summary-primary-value"));
         let primary_finding_word_index = visible_words
             .windows(primary_finding.len())
             .position(|window| window == primary_finding)
@@ -444,7 +444,7 @@ fn collapse_html_whitespace(text: &str) -> String {
 #[test]
 fn summary_budget_counter_detects_default_visible_regressions() {
     let html = r##"<!doctype html><html><body><main class="summary">
-        <section class="panel"><p class="summary-interpretation">Primary finding appears here.</p>
+        <section class="panel"><p class="summary-primary-value">Primary finding appears here.</p>
         <p>Recorded evidence describes this run and does not establish a universal antenna ranking.</p>
         <p>Recorded evidence describes this run and does not establish a universal antenna ranking.</p>
         <table><tbody><tr><td>Visible audit row</td></tr></tbody></table>

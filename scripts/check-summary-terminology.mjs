@@ -67,10 +67,10 @@ const quickGuidePath = "docs/read-summary-in-two-minutes.md";
 const quickGuide = requireIncludes(quickGuidePath, [
   "https://antennabench.com/sample-report/summary/",
   "https://antennabench.com/sample-report/inconclusive/",
-  "Paired shared-path signal",
-  "Controlled common-opportunity detection",
-  "Uncontrolled observed paths",
-  "Principal Limitation",
+  "same-path signal",
+  "Detection with the same active receivers",
+  "All observed remote paths",
+  "Most important limitation",
   "Full evidence",
   "session bundle",
 ]);

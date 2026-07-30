@@ -1,5 +1,9 @@
 import { invokeReportWindowDocument } from "./bridge.mjs";
-import { createReportDocumentUrls, releaseReportFrame } from "./models.mjs";
+import {
+  createReportDocumentUrls,
+  prepareEmbeddedReportFrame,
+  releaseReportFrame,
+} from "./models.mjs";
 
 const frame = document.querySelector("[data-report-window-frame]");
 const error = document.querySelector("[data-report-window-error]");
@@ -37,6 +41,7 @@ try {
   frame.dataset.reportDocumentUrl = url;
   frame.dataset.presentationId = String(report.presentationId);
   frame.dataset.reportMode = report.documentKind;
+  prepareEmbeddedReportFrame(frame);
   frame.src = url;
 } catch (failure) {
   frame.hidden = true;

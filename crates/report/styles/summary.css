@@ -12,60 +12,109 @@ main.summary {
 .summary .summary-overview {
   border-top-width: 0.25rem;
 }
-.summary-context-line {
-  position: relative;
+.summary-run-details {
+  margin: 0.35rem 0 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+.summary-run-details > summary {
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
+  padding: 0.3rem 0 0.45rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+.summary-run-details > summary span {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.summary-run-details-body {
+  padding: 0 0.55rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.summary-run-details-body p {
+  margin: 0.25rem 0;
+}
+.summary-primary-result {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 1.5fr);
+  gap: 0.65rem 1rem;
+  padding: 0.85rem;
+  border: 1px solid #b8c9e8;
+  border-left: 0.45rem solid var(--accent);
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--paper) 68%);
+}
+.summary-primary-measurement {
+  min-width: 0;
+}
+.summary-primary-value {
+  margin: 0.25rem 0 0 !important;
+  color: var(--accent);
+  font-size: clamp(2.35rem, 7vw, 4.4rem);
+  font-weight: 850;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  overflow-wrap: anywhere;
+}
+.summary-primary-label {
+  max-width: 22rem;
+  margin: 0.35rem 0 0 !important;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+.summary-primary-explanation {
+  align-self: center;
+}
+.summary-primary-answer {
+  margin: 0 !important;
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  line-height: 1.35;
+}
+.summary-primary-support {
+  margin: 0.5rem 0 0 !important;
+  color: var(--muted);
+  font-size: 0.82rem;
   font-weight: 700;
 }
-.summary-context-line .goal-help {
-  display: inline-block;
-  margin-left: 0.25rem;
+.summary-principal-limitation {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-left: 0.25rem solid #9b5c00;
+  background: #fff8e8;
 }
-.summary-context-line .goal-help > summary {
-  display: inline-grid;
-  width: 1.1rem;
-  height: 1.1rem;
-  place-items: center;
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-  color: var(--accent);
-  cursor: help;
-  font-size: 0.72rem;
-  list-style: none;
-}
-.summary-context-line .goal-help > summary::-webkit-details-marker {
-  display: none;
-}
-.summary-context-line .goal-help-popover {
-  position: absolute;
-  z-index: 2;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  width: min(32rem, 100%);
-  padding: 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  background: var(--paper);
-  box-shadow: 0 0.5rem 1.5rem rgb(23 32 51 / 16%);
-  color: var(--ink);
-  font-weight: 400;
-}
-.summary-context-line .goal-help-popover p {
-  margin: 0.35rem 0 0;
-}
-.summary-interpretation {
-  margin: 0.45rem 0;
-  font-size: 1rem;
-}
-.summary-populations {
+.summary-secondary-results {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(12rem, 0.65fr) minmax(0, 1.35fr);
+  gap: 0.65rem 1rem;
+  margin-top: 0.65rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+.summary-secondary-heading h3,
+.summary-secondary-heading p {
+  margin: 0;
+}
+.summary-secondary-heading h3 {
+  font-size: 0.95rem;
+}
+.summary-secondary-heading p {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.summary-secondary-findings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
 }
 .summary-finding {
   min-width: 0;
-  padding: 0.6rem;
+  padding: 0.55rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   background: var(--soft);
@@ -76,32 +125,61 @@ main.summary {
   justify-content: space-between;
   gap: 0.35rem;
 }
-.summary-finding h3,
+.summary-finding h4,
 .summary-finding p {
   margin: 0;
+}
+.summary-finding h4 {
+  font-size: 0.82rem;
 }
 .summary-finding-result {
   margin-top: 0.35rem !important;
   font-weight: 800;
 }
-.summary-finding-support,
-.summary-finding-population {
+.summary-finding-support {
   margin-top: 0.25rem !important;
   color: var(--muted);
   font-size: 0.78rem;
 }
-.summary-principal-limitation {
-  margin-top: 0.5rem;
-  padding: 0.55rem 0.65rem;
-  border-left: 0.25rem solid var(--accent);
-  background: var(--accent-soft);
-}
 .summary-condition-detail {
   margin-top: 0.5rem;
 }
+.summary-population-definitions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.55rem 0;
+}
+.summary-population-definitions div {
+  padding: 0.55rem;
+  border-radius: 0.45rem;
+  background: var(--soft);
+}
+.summary-population-definitions dt {
+  font-weight: 800;
+}
+.summary-population-definitions dd {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+html[data-report-surface="embedded"] .summary-document-header {
+  display: none;
+}
+html[data-report-surface="embedded"] main.summary {
+  margin-top: 0.55rem;
+}
 @media (max-width: 760px) {
-  .summary-populations {
+  .summary-primary-result,
+  .summary-secondary-results {
     grid-template-columns: 1fr;
+  }
+  .summary-secondary-findings,
+  .summary-population-definitions {
+    grid-template-columns: 1fr;
+  }
+  .summary-primary-value {
+    font-size: clamp(2.2rem, 12vw, 3.4rem);
   }
 }
 .summary .hero {
@@ -210,6 +288,12 @@ main.summary {
     width: 100%;
     margin: 0;
   }
+  html[data-report-surface="embedded"] .summary-document-header {
+    display: block !important;
+  }
+  .summary-run-details > :not(summary) {
+    display: block !important;
+  }
   .summary .hero,
   .summary .panel {
     box-shadow: none;
@@ -223,6 +307,18 @@ main.summary {
   }
   .summary .overview {
     break-after: auto;
+  }
+  .summary-primary-result {
+    gap: 0.45rem 0.7rem;
+    padding: 0.6rem;
+  }
+  .summary-primary-value {
+    font-size: 2.7rem;
+  }
+  .summary-secondary-results {
+    gap: 0.45rem 0.7rem;
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
   }
   .summary .headline-facts {
     gap: 0.3rem;

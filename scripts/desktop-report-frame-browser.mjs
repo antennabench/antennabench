@@ -549,6 +549,10 @@ try {
     history.hidden = false;
     alert.hidden = true;
     frame.hidden = false;
+    frame.addEventListener("load", () => {
+      frame.contentDocument.documentElement.dataset.reportSurface = "embedded";
+      frame.contentDocument.querySelector(".summary-run-details")?.removeAttribute("open");
+    }, { once: true });
     frame.src = "/standalone-summary";
     content.scrollTop = 0;
     const contentRect = content.getBoundingClientRect();
@@ -947,6 +951,11 @@ try {
       source: frame.getAttribute("src"),
       embeddedScripts: embedded.scripts.length,
       embeddedSummary: embedded.querySelector(".summary") !== null,
+      embeddedSurface: embedded.documentElement.dataset.reportSurface,
+      runDetailsOpen: embedded.querySelector(".summary-run-details").open,
+      documentHeaderDisplay: getComputedStyle(
+        embedded.querySelector(".summary-document-header"),
+      ).display,
       topLevelOverflow: getComputedStyle(document.body).overflow,
     };
   })()`], { json: true })).result;
@@ -959,6 +968,9 @@ try {
   assert.match(immutableReader.source, /^blob:http:\/\/127\.0\.0\.1:/u);
   assert.equal(immutableReader.embeddedScripts, 0);
   assert.equal(immutableReader.embeddedSummary, true);
+  assert.equal(immutableReader.embeddedSurface, "embedded");
+  assert.equal(immutableReader.runDetailsOpen, false);
+  assert.equal(immutableReader.documentHeaderDisplay, "none");
   assert.equal(immutableReader.topLevelOverflow, "hidden");
   await browser(["screenshot", resolve("target/desktop-report-browser/report-window-summary-980x780.png")]);
 
@@ -1050,6 +1062,31 @@ try {
     assert.ok(Math.abs(standalone.negative - 0.2) < 0.01);
     assert.ok(Math.abs(standalone.proportionalWidth - 0.25) < 0.01);
     if (mode === "summary") {
+      const summaryOpening = (await browser(["eval", `(() => {
+        const runDetails = document.querySelector(".summary-run-details");
+        const limitation = document.querySelector(".summary-principal-limitation");
+        return {
+          primaryValue: document.querySelector(".summary-primary-value").textContent.trim(),
+          primaryValueSize: Number.parseFloat(
+            getComputedStyle(document.querySelector(".summary-primary-value")).fontSize,
+          ),
+          runDetailsOpen: runDetails.open,
+          documentHeaderDisplay: getComputedStyle(
+            document.querySelector(".summary-document-header"),
+          ).display,
+          limitationBottom: limitation.getBoundingClientRect().bottom,
+          viewportHeight: innerHeight,
+        };
+      })()`], { json: true })).result;
+      assert.equal(summaryOpening.primaryValue, "+5 dB");
+      assert.ok(summaryOpening.primaryValueSize >= 36);
+      assert.equal(summaryOpening.runDetailsOpen, true);
+      assert.equal(summaryOpening.documentHeaderDisplay, "block");
+      assert.ok(
+        summaryOpening.limitationBottom <= summaryOpening.viewportHeight,
+        `standalone Summary limitation missed the initial viewport: ${JSON.stringify(summaryOpening)}`,
+      );
+
       const focusOrder = (await browser(["eval", `(() => {
         const selector = [
           'a[href]',
@@ -1076,6 +1113,36 @@ try {
         "SUMMARY",
       ]);
 
+      await browser(["eval", `(() => {
+        document.querySelector(".summary-run-details > summary").focus();
+      })()`], { json: true });
+      assert.equal(
+        (await browser([
+          "eval",
+          "getComputedStyle(document.querySelector('.summary-run-details > summary')).outlineStyle",
+        ], { json: true })).result,
+        "solid",
+      );
+      await browser(["press", "Space"]);
+      assert.equal(
+        (await browser(["eval", "document.querySelector('.summary-run-details').open"], {
+          json: true,
+        })).result,
+        false,
+      );
+      await browser(["press", "Enter"]);
+      assert.equal(
+        (await browser(["eval", "document.querySelector('.summary-run-details').open"], {
+          json: true,
+        })).result,
+        true,
+      );
+      await browser(["eval", "scrollTo(0, 0); document.activeElement.blur()"], { json: true });
+
+      await browser([
+        "screenshot",
+        resolve("target/desktop-report-browser/summary-answer-first-1200x900.png"),
+      ]);
       const pdfPath = resolve("target/desktop-report-browser/summary-us-letter.pdf");
       await browser(["pdf", pdfPath]);
       const pdf = readFileSync(pdfPath).toString("latin1");
@@ -1118,10 +1185,18 @@ try {
             overviewTop: overview.getBoundingClientRect().top,
             limitationBottom: limitation.getBoundingClientRect().bottom,
             viewportHeight: innerHeight,
-            findingCount: document.querySelectorAll(".summary-finding").length,
-            populationCount: document.querySelectorAll(".summary-finding-population").length,
+            primaryResultCount: document.querySelectorAll(".summary-primary-result").length,
+            primaryValue: document.querySelector(".summary-primary-value").textContent.trim(),
+            primaryValueSize: Number.parseFloat(
+              getComputedStyle(document.querySelector(".summary-primary-value")).fontSize,
+            ),
+            secondaryFindingCount: document.querySelectorAll(".summary-finding").length,
             exactDetailOpen: document.querySelector(".summary-condition-detail").open,
             methodsOpen: document.querySelector(".answerability-disclosure").open,
+            runDetailsOpen: document.querySelector(".summary-run-details").open,
+            documentHeaderDisplay: getComputedStyle(
+              document.querySelector(".summary-document-header"),
+            ).display,
             primarySectionCount: document.querySelectorAll("main.summary > section.panel").length,
             aggregateCount: document.querySelectorAll(".summary-path-aggregate svg").length,
             rawTabStopCount: document.querySelectorAll('[tabindex="0"]').length,
@@ -1131,7 +1206,9 @@ try {
               ".coverage-world",
               ".coverage-polar",
             ].join(",")).length,
-            readingRuleCount: document.querySelectorAll(".summary-reading-rules li").length,
+            populationDefinitionCount: document.querySelectorAll(
+              ".summary-population-definitions > div",
+            ).length,
             disclosureCount: document.querySelectorAll("details").length,
             provenanceOpen: document.querySelector(".summary-reference").open,
           };
@@ -1144,17 +1221,21 @@ try {
     assert.equal(styles.panelBackground, "rgb(255, 255, 255)");
     assert.equal(styles.panelBorderStyle, "solid");
     assert.equal(styles.tableCollapse, "collapse");
-    assert.equal(styles.heroDisplay, mode === "summary" ? "block" : "grid");
+    assert.equal(styles.heroDisplay, mode === "summary" ? "none" : "grid");
     if (mode === "summary") {
-      assert.equal(styles.summaryOpening.findingCount, 3);
-      assert.equal(styles.summaryOpening.populationCount, 3);
+      assert.equal(styles.summaryOpening.primaryResultCount, 1);
+      assert.equal(styles.summaryOpening.primaryValue, "+5 dB");
+      assert.ok(styles.summaryOpening.primaryValueSize >= 36);
+      assert.equal(styles.summaryOpening.secondaryFindingCount, 2);
       assert.equal(styles.summaryOpening.exactDetailOpen, false);
       assert.equal(styles.summaryOpening.methodsOpen, false);
+      assert.equal(styles.summaryOpening.runDetailsOpen, false);
+      assert.equal(styles.summaryOpening.documentHeaderDisplay, "none");
       assert.ok(styles.summaryOpening.primarySectionCount <= 4);
       assert.ok(styles.summaryOpening.aggregateCount > 0);
       assert.equal(styles.summaryOpening.rawTabStopCount, 0);
       assert.equal(styles.summaryOpening.auditVisualCount, 0);
-      assert.equal(styles.summaryOpening.readingRuleCount, 2);
+      assert.equal(styles.summaryOpening.populationDefinitionCount, 3);
       assert.equal(styles.summaryOpening.disclosureCount, 5);
       assert.equal(styles.summaryOpening.provenanceOpen, false);
       assert.ok(styles.summaryOpening.overviewTop >= 0);
@@ -1338,7 +1419,7 @@ try {
       tableHeadPosition: getComputedStyle(document.querySelector(".overview-table thead")).position,
       tableRowDisplay: getComputedStyle(document.querySelector(".overview-table tbody tr")).display,
       supportColumns: getComputedStyle(document.querySelector(
-        ${JSON.stringify(mode === "summary" ? ".summary-populations" : ".overview-support")},
+        ${JSON.stringify(mode === "summary" ? ".summary-secondary-findings" : ".overview-support")},
       )).gridTemplateColumns,
     }))()`);
     assert.equal(responsive.tableHeadPosition, "absolute");
@@ -1357,7 +1438,7 @@ try {
       pageUrl,
       "getComputedStyle(document.querySelector('.hero')).display",
     );
-    assert.equal(alternateHero, alternateMode === "summary" ? "block" : "grid");
+    assert.equal(alternateHero, alternateMode === "summary" ? "none" : "grid");
   }
   process.stdout.write(
     `Standalone and embedded ${basename(fullPath)} and ${basename(summaryPath)} retained report CSS under exact CSP boundaries.\n`,
