@@ -291,7 +291,7 @@ fn summary_template_contexts_reuse_shared_facts_without_restricted_audit_detail(
         report.overview.scope.station.callsign, report.overview.scope.station.grid
     );
     assert!(full.contains(&scope_fact));
-    assert!(first.contains("class=\"summary-context-line\""));
+    assert!(first.contains("class=\"summary-run-details\" open"));
     assert!(first.contains(&report.overview.scope.station.callsign));
     assert!(first.contains(&report.overview.scope.station.grid));
     for shared_fact in ["Signed values:", "Shared-path signal", "Observed reach"] {
@@ -367,24 +367,25 @@ fn semantic_text_assertions_preserve_inline_flow_and_optional_spacing() {
 }
 
 #[test]
-fn summary_leads_with_separate_populations_and_defers_exact_condition_detail() {
+fn summary_leads_with_one_primary_result_and_separate_secondary_evidence() {
     let report = paired_report(true);
     let html = render_summary_html(&report).unwrap();
     let document = ReportDocument::parse(&html);
 
-    document.assert_count(".summary-context-line", 1);
-    document.assert_count(".summary-populations > .summary-finding", 3);
-    document.assert_count(".summary-finding-result", 3);
-    document.assert_count(".summary-finding-support", 3);
-    document.assert_count(".summary-finding-population", 3);
+    document.assert_present("details.summary-run-details[open]");
+    document.assert_count(".summary-primary-result", 1);
+    document.assert_count(".summary-primary-value", 1);
+    document.assert_rendered_text(".summary-primary-value", "+1.5 dB");
+    document.assert_count(".summary-secondary-findings > .summary-finding", 2);
+    document.assert_count(".summary-finding-result", 2);
+    document.assert_count(".summary-finding-support", 2);
     for label in [
-        "Paired shared-path signal",
-        "Controlled common-opportunity detection",
-        "Uncontrolled unique observed paths",
+        "Detection with the same active receivers",
+        "All observed remote paths",
     ] {
-        document.assert_any_rendered_text(".summary-finding h3", label);
+        document.assert_any_rendered_text(".summary-finding h4", label);
     }
-    document.assert_present(".summary-principal-limitation");
+    document.assert_present(".summary-primary-result .summary-principal-limitation");
     document.assert_present("details.summary-condition-detail:not([open])");
     document.assert_present("details.answerability-disclosure:not([open])");
     document.assert_disclosure_contains(
@@ -394,8 +395,9 @@ fn summary_leads_with_separate_populations_and_defers_exact_condition_detail() {
     );
 
     let overview = html.find("id=\"what-run-show\"").unwrap();
-    let populations = html.find("class=\"summary-populations\"").unwrap();
+    let primary = html.find("class=\"summary-primary-result\"").unwrap();
     let limitation = html.find("class=\"summary-principal-limitation\"").unwrap();
+    let secondary = html.find("class=\"summary-secondary-results\"").unwrap();
     let condition_detail = html
         .find("class=\"audit-disclosure summary-condition-detail\"")
         .unwrap();
@@ -403,22 +405,23 @@ fn summary_leads_with_separate_populations_and_defers_exact_condition_detail() {
         .find("class=\"audit-disclosure answerability-disclosure\"")
         .unwrap();
     let navigation = html.find("class=\"question-nav\"").unwrap();
-    assert!(overview < populations);
-    assert!(populations < limitation);
-    assert!(limitation < condition_detail);
+    assert!(overview < primary);
+    assert!(primary < limitation);
+    assert!(limitation < secondary);
+    assert!(secondary < condition_detail);
     assert!(condition_detail < methods);
     assert!(methods < navigation);
 
-    let interpretation = summary_interpretation_from(&html);
-    assert!(interpretation.contains(
-        "Shared-path signal, controlled detection, and uncontrolled observed paths answer separate questions"
-    ));
+    document.assert_rendered_text(
+        ".summary-primary-answer",
+        "On remote paths heard with both antennas, B's median received signal was 1.5 dB higher than A's during this recorded run.",
+    );
     for prohibited in [
         "stronger recorded results",
         "overall winner",
         "better antenna",
     ] {
-        assert!(!interpretation.to_ascii_lowercase().contains(prohibited));
+        assert!(!html.to_ascii_lowercase().contains(prohibited));
     }
 }
 
@@ -436,7 +439,7 @@ fn consolidates_standing_caveats_in_one_shared_reading_panel() {
     summary_document.assert_present("details.panel.reading-guide");
     summary_document.assert_any_rendered_text(
         "details.panel.reading-guide > summary",
-        "Two rules for reading this Summary",
+        "What these results compare",
     );
     summary_document.assert_absent("details.panel.reading-guide[open]");
     for caveat in [
@@ -448,10 +451,15 @@ fn consolidates_standing_caveats_in_one_shared_reading_panel() {
         assert_eq!(full.matches(caveat).count(), 1, "repeated caveat: {caveat}");
     }
     for caveat in [
-        "Missing public evidence is not a zero-strength measurement unless active-receiver evidence establishes a listening opportunity.",
-        "Results describe this recorded run and do not establish a universal antenna ranking.",
+        "These populations are not interchangeable.",
+        "Missing public evidence is not a zero-strength measurement",
+        "this recorded run does not establish a universal antenna ranking.",
     ] {
-        assert_eq!(summary.matches(caveat).count(), 1, "repeated Summary rule: {caveat}");
+        assert_eq!(
+            summary.matches(caveat).count(),
+            1,
+            "repeated Summary rule: {caveat}"
+        );
     }
     for html in [&full, &summary] {
         assert!(!html.contains("Unmatched paths are not zero-SNR measurements"));
@@ -1102,15 +1110,17 @@ fn no_matched_paths_leads_with_separate_nonzero_reach_facts_in_full_and_summary_
         assert!(!html.contains("id=\"same-path-signal\""));
         assert!(!html.contains("href=\"#same-path-signal\""));
     }
-    summary_document.assert_count(".summary-finding", 3);
-    summary_document.assert_any_rendered_text(".summary-finding h3", "Paired shared-path signal");
+    summary_document.assert_count(".summary-primary-result", 1);
+    summary_document.assert_rendered_text(".summary-primary-value", "No shared-path dB result");
+    summary_document.assert_count(".summary-finding", 2);
     summary_document.assert_any_rendered_text(
-        ".summary-finding h3",
-        "Controlled common-opportunity detection",
+        ".summary-finding h4",
+        "Detection with the same active receivers",
     );
-    summary_document
-        .assert_any_rendered_text(".summary-finding h3", "Uncontrolled unique observed paths");
-    assert!(summary.contains("Usable observations were recorded, but none formed a shared path"));
+    summary_document.assert_any_rendered_text(".summary-finding h4", "All observed remote paths");
+    assert!(summary.contains(
+        "The run did not hear the same remote path with both antennas in a matched comparison"
+    ));
     assert!(summary.contains("unique observed paths"));
     assert!(full_answer.starts_with("Headline evidence is shown separately for "));
     assert!(full_answer.contains("comparison groups below and is not pooled"));
@@ -1198,7 +1208,8 @@ fn no_matched_paths_with_zero_usable_observations_does_not_claim_reach_evidence(
 
     let summary = render_summary_html(&report).unwrap();
     let summary_document = ReportDocument::parse(&summary);
-    summary_document.assert_count(".summary-finding", 3);
+    summary_document.assert_count(".summary-primary-result", 1);
+    summary_document.assert_count(".summary-finding", 2);
     assert!(summary
         .contains("No usable observations were recorded for N0CALL in the captured windows."));
     assert!(summary.contains("Captured-window outcome"));
@@ -1208,7 +1219,7 @@ fn no_matched_paths_with_zero_usable_observations_does_not_claim_reach_evidence(
     assert!(summary.contains("duplicated"));
     assert!(summary.contains("observation"));
     assert!(summary.contains("No usable observed paths"));
-    assert!(summary.contains("Missing shared paths are not a 0 dB result"));
+    assert!(summary.contains("Missing or unmatched evidence is not treated as a 0 dB measurement"));
     assert!(!summary.contains("0 dB median"));
 
     report.snapshot.adapter_evidence.imports[0].total_count = 0;
@@ -1884,7 +1895,7 @@ fn summary_information_density_and_interaction_budgets_are_explicit() {
             "successful",
             successful,
             SummaryBudgetMetrics {
-                visible_words: 373,
+                visible_words: 385,
                 primary_sections: 3,
                 visible_tables: 0,
                 visible_table_rows: 0,
@@ -1892,15 +1903,15 @@ fn summary_information_density_and_interaction_budgets_are_explicit() {
                 focusable_elements: 9,
                 focusable_chart_points: 0,
                 repeated_visible_caveats: 0,
-                primary_finding_word_index: 36,
-                html_bytes: 66_602,
+                primary_finding_word_index: 73,
+                html_bytes: 70_026,
             },
         ),
         (
             "inconclusive",
             inconclusive,
             SummaryBudgetMetrics {
-                visible_words: 542,
+                visible_words: 545,
                 primary_sections: 3,
                 visible_tables: 0,
                 visible_table_rows: 0,
@@ -1908,15 +1919,15 @@ fn summary_information_density_and_interaction_budgets_are_explicit() {
                 focusable_elements: 9,
                 focusable_chart_points: 0,
                 repeated_visible_caveats: 0,
-                primary_finding_word_index: 40,
-                html_bytes: 75_382,
+                primary_finding_word_index: 77,
+                html_bytes: 78_736,
             },
         ),
         (
             "bounded-small-evidence",
             bounded,
             SummaryBudgetMetrics {
-                visible_words: 407,
+                visible_words: 419,
                 primary_sections: 4,
                 visible_tables: 0,
                 visible_table_rows: 0,
@@ -1924,15 +1935,15 @@ fn summary_information_density_and_interaction_budgets_are_explicit() {
                 focusable_elements: 10,
                 focusable_chart_points: 0,
                 repeated_visible_caveats: 0,
-                primary_finding_word_index: 36,
-                html_bytes: 67_172,
+                primary_finding_word_index: 73,
+                html_bytes: 70_596,
             },
         ),
         (
             "single-antenna",
             single,
             SummaryBudgetMetrics {
-                visible_words: 229,
+                visible_words: 227,
                 primary_sections: 2,
                 visible_tables: 0,
                 visible_table_rows: 0,
@@ -1940,8 +1951,8 @@ fn summary_information_density_and_interaction_budgets_are_explicit() {
                 focusable_elements: 8,
                 focusable_chart_points: 0,
                 repeated_visible_caveats: 0,
-                primary_finding_word_index: 37,
-                html_bytes: 59_463,
+                primary_finding_word_index: 71,
+                html_bytes: 62_066,
             },
         ),
     ] {
@@ -2141,19 +2152,6 @@ fn plain_language_answer_from(html: &str) -> &str {
         + html[start..]
             .find("</p>")
             .expect("plain-language answer should close");
-    &html[start..end]
-}
-
-fn summary_interpretation_from(html: &str) -> &str {
-    let marker = "<p class=\"summary-interpretation\">";
-    let start = html
-        .find(marker)
-        .map(|index| index + marker.len())
-        .expect("summary interpretation should render");
-    let end = start
-        + html[start..]
-            .find("</p>")
-            .expect("summary interpretation should close");
     &html[start..end]
 }
 

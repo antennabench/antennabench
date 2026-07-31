@@ -451,7 +451,7 @@ mod tests {
         let combined_document_bytes = report_bytes + summary_bytes;
         assert_eq!(
             (report_bytes, summary_bytes, combined_document_bytes),
-            (2_588_060, 66_898, 2_654_958),
+            (2_588_060, 70_331, 2_658_391),
             "canonical desktop presentation byte baseline changed"
         );
         assert!(report_bytes < REPORT_DOCUMENT_IPC_BYTES as usize);

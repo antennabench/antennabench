@@ -2,52 +2,68 @@
          class="panel overview summary-overview"
          tabindex="-1"
          aria-labelledby="what-run-show-title">
-  <p class="eyebrow">Answer first</p>
-  <h2 id="what-run-show-title">What did the run show?</h2>
-  <div class="summary-context-line">
-    {{ view.context }}
-    {%- if view.goal_lens.is_some() %}
+  <p class="eyebrow">Primary session result</p>
+  <h2 id="what-run-show-title">What did this run show?</h2>
+  <details class="summary-run-details" open>
+    <summary>
+      <strong>Run details</strong>
+      <span>{{ view.context }}</span>
+    </summary>
+    {% if view.goal_lens.is_some() %}
       {% let lens = view.goal_lens.as_ref().unwrap() %}
-      <details class="goal-help">
-        <summary aria-label="About the recorded {{ lens.label }} goal lens">i</summary>
-        <div class="goal-help-popover">
-          <strong>{{ lens.label }} lens</strong>
-          <p>{{ lens.practical_meaning }}</p>
-          {% if lens.distance_focus.is_some() %}
-            <p>
-              <strong>Prespecified distance focus:</strong> {{ lens.distance_focus.as_ref().unwrap() }}. Full evidence retains every other available distance category.
-            </p>
-          {% endif %}
-          <p>
-            The goal changes presentation priority only; evidence and calculations are unchanged.
-          </p>
-        </div>
-      </details>
-    {%- endif -%}
-  </div>
-  <p class="summary-interpretation">
-    <strong>{{ view.interpretation }}</strong>
-  </p>
-  <div class="summary-populations" aria-label="Separate evidence populations">
-    {% for finding in view.findings %}
-      <article class="summary-finding">
-        <div class="summary-finding-heading">
-          <h3>{{ finding.label }}</h3>
-          <span class="badge availability-status status-{{ finding.status_class }}">
-            {{ finding.status }}
-          </span>
-        </div>
-        <p class="summary-finding-result">{{ finding.result }}</p>
-        <p class="summary-finding-support">{{ finding.support }}</p>
-        <p class="summary-finding-population">
-          <strong>Population:</strong> {{ finding.population }}
+      <div class="summary-run-details-body">
+        <p>
+          <strong>{{ lens.label }} goal:</strong> {{ lens.practical_meaning }}
         </p>
-      </article>
-    {% endfor %}
-  </div>
-  <aside class="summary-principal-limitation" aria-label="Principal limitation">
-    <strong>Principal limitation:</strong> {{ view.principal_limitation }}
-  </aside>
+        {% if lens.distance_focus.is_some() %}
+          <p>
+            <strong>Prespecified distance focus:</strong> {{ lens.distance_focus.as_ref().unwrap() }}. Full evidence retains every other available distance category.
+          </p>
+        {% endif %}
+        <p>
+          The recorded goal changes presentation priority only; evidence and calculations are unchanged.
+        </p>
+      </div>
+    {% endif %}
+  </details>
+  <article class="summary-primary-result" aria-label="Primary same-path signal result">
+    <div class="summary-primary-measurement">
+      <span class="badge availability-status status-{{ view.primary_result.status_class }}">
+        {{ view.primary_result.status }}
+      </span>
+      <p class="summary-primary-value">{{ view.primary_result.value }}</p>
+      <p class="summary-primary-label">Median signal difference on the same remote paths</p>
+    </div>
+    <div class="summary-primary-explanation">
+      <p class="summary-primary-answer">
+        <strong>{{ view.primary_result.explanation }}</strong>
+      </p>
+      <p class="summary-primary-support">{{ view.primary_result.support }}</p>
+    </div>
+    <aside class="summary-principal-limitation" aria-label="Principal limitation">
+      <strong>Most important limitation:</strong> {{ view.principal_limitation }}
+    </aside>
+  </article>
+  <section class="summary-secondary-results" aria-labelledby="summary-secondary-title">
+    <div class="summary-secondary-heading">
+      <h3 id="summary-secondary-title">Other evidence, kept separate</h3>
+      <p>These numbers answer different questions and do not change the dB result above.</p>
+    </div>
+    <div class="summary-secondary-findings">
+      {% for finding in view.secondary_findings %}
+        <article class="summary-finding">
+          <div class="summary-finding-heading">
+            <h4>{{ finding.label }}</h4>
+            <span class="badge availability-status status-{{ finding.status_class }}">
+              {{ finding.status }}
+            </span>
+          </div>
+          <p class="summary-finding-result">{{ finding.result }}</p>
+          <p class="summary-finding-support">{{ finding.support }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
   {% for notice in view.notices %}
     <p class="notice{% if notice.critical %} critical{% endif %}">
       <strong>{{ notice.label }}:</strong> {{ notice.message }}.

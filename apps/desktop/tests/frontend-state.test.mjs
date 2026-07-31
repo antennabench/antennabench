@@ -1832,6 +1832,7 @@ test("report modes switch immutable documents without changing presentation iden
 test("report mode switching carries a bounded reading-position hint", () => {
   let restore;
   let focused = false;
+  let runDetailsCollapsed = false;
   const frame = {
     dataset: {
       presentationId: "8",
@@ -1872,7 +1873,18 @@ test("report mode switching carries a bounded reading-position hint", () => {
 
   frame.contentDocument = {
     activeElement: { id: "" },
+    documentElement: { dataset: {} },
     scrollingElement: { scrollHeight: 3_000 },
+    querySelector(selector) {
+      if (selector === ".summary-run-details") {
+        return {
+          removeAttribute(name) {
+            if (name === "open") runDetailsCollapsed = true;
+          },
+        };
+      }
+      return null;
+    },
     getElementById(id) {
       if (id === "findings") return {};
       if (id === "finding-details") return { focus: () => { focused = true; } };
@@ -1881,6 +1893,8 @@ test("report mode switching carries a bounded reading-position hint", () => {
   };
   restore();
   assert.equal(focused, true);
+  assert.equal(frame.contentDocument.documentElement.dataset.reportSurface, "embedded");
+  assert.equal(runDetailsCollapsed, true);
 });
 
 test("background report presentations coalesce and apply atomically", () => {

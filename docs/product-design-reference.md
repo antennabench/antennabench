@@ -76,11 +76,21 @@ Report answerability is modeled per conditional question rather than by one
 global success gate. Shared-path signal, detection among receivers active in
 both cycles, observed reach, observed distance and direction profile, and
 repeatability across blocks each retain a typed availability or limitation.
-The renderer names answered families in the headline, omits unavailable
-families from primary navigation and full empty panels, and keeps limitations
-in one secondary disclosure. Full evidence and Summary reports consume the same
-renderer-neutral projection. The original paired-comparison availability field
-remains only as a compatibility view of finite-SNR shared-path analysis.
+The Summary makes the same-path median the one dominant session result, keeps
+its support and principal limitation attached, and presents common-active
+detection plus all observed paths as subordinate answers from distinct
+populations. When no same-path result exists, unavailability is the primary
+answer rather than a promoted uncontrolled count. Technical population
+definitions remain in one accessible disclosure. Full evidence and Summary
+reports consume the same renderer-neutral projection. The original
+paired-comparison availability field remains only as a compatibility view of
+finite-SNR shared-path analysis.
+
+Standalone and printed Summary artifacts retain their document identity,
+session context, recorded goal, and provenance. The embedded Local report and
+restricted report window collapse run details and suppress the redundant inner
+document heading after the immutable bytes load; this reader-only state neither
+changes those bytes nor creates a new report revision.
 
 Transmit-path reports and receive-path local decodes answer different questions
 and must not be pooled. Missing decodes are not zero-SNR observations. Goal

@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light">
     <meta data-antennabench-report-csp
           http-equiv="Content-Security-Policy"
-          content="default-src 'none'; style-src 'sha256-9QkqrSbvoKMPWSiQgqoLJg5TaxI33iuO92LSteE6/lc='; style-src-attr 'none'; base-uri 'none'; form-action 'none'">
+          content="default-src 'none'; style-src 'sha256-4n+dmKAMUTX/gVOTM4kHLiKEBk4ovr2tAN0w5pFqGJo='; style-src-attr 'none'; base-uri 'none'; form-action 'none'">
     <meta name="description" content="Read the canonical AntennaBench Summary: answer-first findings, separate evidence populations, support counts, and principal limitations from a real sanitized WSPR comparison.">
     <link rel="canonical" href="https://antennabench.com/sample-report/summary/">
     <meta property="og:type" content="website">
@@ -1464,60 +1464,109 @@ main.summary {
 .summary .summary-overview {
   border-top-width: 0.25rem;
 }
-.summary-context-line {
-  position: relative;
+.summary-run-details {
+  margin: 0.35rem 0 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+.summary-run-details > summary {
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
+  padding: 0.3rem 0 0.45rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+.summary-run-details > summary span {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.summary-run-details-body {
+  padding: 0 0.55rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.summary-run-details-body p {
+  margin: 0.25rem 0;
+}
+.summary-primary-result {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 1.5fr);
+  gap: 0.65rem 1rem;
+  padding: 0.85rem;
+  border: 1px solid #b8c9e8;
+  border-left: 0.45rem solid var(--accent);
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--paper) 68%);
+}
+.summary-primary-measurement {
+  min-width: 0;
+}
+.summary-primary-value {
+  margin: 0.25rem 0 0 !important;
+  color: var(--accent);
+  font-size: clamp(2.35rem, 7vw, 4.4rem);
+  font-weight: 850;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  overflow-wrap: anywhere;
+}
+.summary-primary-label {
+  max-width: 22rem;
+  margin: 0.35rem 0 0 !important;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+.summary-primary-explanation {
+  align-self: center;
+}
+.summary-primary-answer {
+  margin: 0 !important;
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  line-height: 1.35;
+}
+.summary-primary-support {
+  margin: 0.5rem 0 0 !important;
+  color: var(--muted);
+  font-size: 0.82rem;
   font-weight: 700;
 }
-.summary-context-line .goal-help {
-  display: inline-block;
-  margin-left: 0.25rem;
+.summary-principal-limitation {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-left: 0.25rem solid #9b5c00;
+  background: #fff8e8;
 }
-.summary-context-line .goal-help > summary {
-  display: inline-grid;
-  width: 1.1rem;
-  height: 1.1rem;
-  place-items: center;
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-  color: var(--accent);
-  cursor: help;
-  font-size: 0.72rem;
-  list-style: none;
-}
-.summary-context-line .goal-help > summary::-webkit-details-marker {
-  display: none;
-}
-.summary-context-line .goal-help-popover {
-  position: absolute;
-  z-index: 2;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  width: min(32rem, 100%);
-  padding: 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  background: var(--paper);
-  box-shadow: 0 0.5rem 1.5rem rgb(23 32 51 / 16%);
-  color: var(--ink);
-  font-weight: 400;
-}
-.summary-context-line .goal-help-popover p {
-  margin: 0.35rem 0 0;
-}
-.summary-interpretation {
-  margin: 0.45rem 0;
-  font-size: 1rem;
-}
-.summary-populations {
+.summary-secondary-results {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(12rem, 0.65fr) minmax(0, 1.35fr);
+  gap: 0.65rem 1rem;
+  margin-top: 0.65rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+.summary-secondary-heading h3,
+.summary-secondary-heading p {
+  margin: 0;
+}
+.summary-secondary-heading h3 {
+  font-size: 0.95rem;
+}
+.summary-secondary-heading p {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.summary-secondary-findings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
 }
 .summary-finding {
   min-width: 0;
-  padding: 0.6rem;
+  padding: 0.55rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   background: var(--soft);
@@ -1528,32 +1577,61 @@ main.summary {
   justify-content: space-between;
   gap: 0.35rem;
 }
-.summary-finding h3,
+.summary-finding h4,
 .summary-finding p {
   margin: 0;
+}
+.summary-finding h4 {
+  font-size: 0.82rem;
 }
 .summary-finding-result {
   margin-top: 0.35rem !important;
   font-weight: 800;
 }
-.summary-finding-support,
-.summary-finding-population {
+.summary-finding-support {
   margin-top: 0.25rem !important;
   color: var(--muted);
   font-size: 0.78rem;
 }
-.summary-principal-limitation {
-  margin-top: 0.5rem;
-  padding: 0.55rem 0.65rem;
-  border-left: 0.25rem solid var(--accent);
-  background: var(--accent-soft);
-}
 .summary-condition-detail {
   margin-top: 0.5rem;
 }
+.summary-population-definitions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.55rem 0;
+}
+.summary-population-definitions div {
+  padding: 0.55rem;
+  border-radius: 0.45rem;
+  background: var(--soft);
+}
+.summary-population-definitions dt {
+  font-weight: 800;
+}
+.summary-population-definitions dd {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+html[data-report-surface="embedded"] .summary-document-header {
+  display: none;
+}
+html[data-report-surface="embedded"] main.summary {
+  margin-top: 0.55rem;
+}
 @media (max-width: 760px) {
-  .summary-populations {
+  .summary-primary-result,
+  .summary-secondary-results {
     grid-template-columns: 1fr;
+  }
+  .summary-secondary-findings,
+  .summary-population-definitions {
+    grid-template-columns: 1fr;
+  }
+  .summary-primary-value {
+    font-size: clamp(2.2rem, 12vw, 3.4rem);
   }
 }
 .summary .hero {
@@ -1662,6 +1740,12 @@ main.summary {
     width: 100%;
     margin: 0;
   }
+  html[data-report-surface="embedded"] .summary-document-header {
+    display: block !important;
+  }
+  .summary-run-details > :not(summary) {
+    display: block !important;
+  }
   .summary .hero,
   .summary .panel {
     box-shadow: none;
@@ -1675,6 +1759,18 @@ main.summary {
   }
   .summary .overview {
     break-after: auto;
+  }
+  .summary-primary-result {
+    gap: 0.45rem 0.7rem;
+    padding: 0.6rem;
+  }
+  .summary-primary-value {
+    font-size: 2.7rem;
+  }
+  .summary-secondary-results {
+    gap: 0.45rem 0.7rem;
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
   }
   .summary .headline-facts {
     gap: 0.3rem;
@@ -1786,6 +1882,30 @@ main.summary {
     padding: 0.15rem 0.25rem;
     margin: 0.15rem 0;
   }
+  .summary.summary-small .summary-run-details {
+    margin: 0.1rem 0 0.2rem;
+  }
+  .summary.summary-small .summary-primary-result {
+    gap: 0.2rem 0.35rem;
+    padding: 0.3rem;
+  }
+  .summary.summary-small .summary-primary-value {
+    font-size: 1.9rem;
+  }
+  .summary.summary-small .summary-primary-support,
+  .summary.summary-small .summary-primary-label,
+  .summary.summary-small .summary-secondary-heading p,
+  .summary.summary-small .summary-finding-support {
+    font-size: 7pt;
+  }
+  .summary.summary-small .summary-principal-limitation {
+    padding: 0.25rem 0.35rem;
+  }
+  .summary.summary-small .summary-secondary-results {
+    gap: 0.2rem 0.35rem;
+    margin-top: 0.2rem;
+    padding-top: 0.2rem;
+  }
   .summary.summary-small p {
     margin: 0.15rem 0;
   }
@@ -1794,7 +1914,7 @@ main.summary {
 </head>
 <body>
   <main class="summary"><a class="skip-link" href="#what-run-show">Skip to summary findings</a>
-<header class="hero">
+<header class="hero summary-document-header">
   <p class="eyebrow">AntennaBench Summary</p>
   <h1>Session Summary</h1>
   <p class="muted">Answer-first reading and sharing view · Not the Full evidence report</p>
@@ -1802,73 +1922,75 @@ main.summary {
          class="panel overview summary-overview"
          tabindex="-1"
          aria-labelledby="what-run-show-title">
-  <p class="eyebrow">Answer first</p>
-  <h2 id="what-run-show-title">What did the run show?</h2>
-  <div class="summary-context-line">
-    N1RWJ · FN41fr · General coverage · 20 m · tx path; Transmit-focused
+  <p class="eyebrow">Primary session result</p>
+  <h2 id="what-run-show-title">What did this run show?</h2>
+  <details class="summary-run-details" open>
+    <summary>
+      <strong>Run details</strong>
+      <span>N1RWJ · FN41fr · General coverage · 20 m · tx path; Transmit-focused</span>
+    </summary>
+    
       
-      <details class="goal-help">
-        <summary aria-label="About the recorded General coverage goal lens">i</summary>
-        <div class="goal-help-popover">
-          <strong>General coverage lens</strong>
-          <p>Prioritizes shared-path signal, common listening opportunities, observed reach, distance and bearing, and repeatability. No universal antenna winner is selected.</p>
-          
-          <p>
-            The goal changes presentation priority only; evidence and calculations are unchanged.
-          </p>
-        </div>
-      </details></div>
-  <p class="summary-interpretation">
-    <strong>Shared-path signal, controlled detection, and uncontrolled observed paths answer separate questions; none is combined into a broader stronger-results claim.</strong>
-  </p>
-  <div class="summary-populations" aria-label="Separate evidence populations">
-    
-      <article class="summary-finding">
-        <div class="summary-finding-heading">
-          <h3>Paired shared-path signal</h3>
-          <span class="badge availability-status status-available">
-            Available
-          </span>
-        </div>
-        <p class="summary-finding-result">+5 dB median</p>
-        <p class="summary-finding-support">83 shared paths · DX Commander stronger at the median</p>
-        <p class="summary-finding-population">
-          <strong>Population:</strong> finite-SNR reports from the same remote path within the same eligible alternating block and comparison condition
+      <div class="summary-run-details-body">
+        <p>
+          <strong>General coverage goal:</strong> Prioritizes shared-path signal, common listening opportunities, observed reach, distance and bearing, and repeatability. No universal antenna winner is selected.
         </p>
-      </article>
-    
-      <article class="summary-finding">
-        <div class="summary-finding-heading">
-          <h3>Controlled common-opportunity detection</h3>
-          <span class="badge availability-status status-unavailable">
-            Unavailable
-          </span>
-        </div>
-        <p class="summary-finding-result">Activity coverage unknown</p>
-        <p class="summary-finding-support">Uncontrolled path totals are not substituted for this population.</p>
-        <p class="summary-finding-population">
-          <strong>Population:</strong> receivers confirmed active in both cycles of an eligible block for the same comparison condition
+        
+        <p>
+          The recorded goal changes presentation priority only; evidence and calculations are unchanged.
         </p>
-      </article>
+      </div>
     
-      <article class="summary-finding">
-        <div class="summary-finding-heading">
-          <h3>Uncontrolled unique observed paths</h3>
-          <span class="badge availability-status status-available">
-            Available
-          </span>
-        </div>
-        <p class="summary-finding-result">133 vs 120 paths</p>
-        <p class="summary-finding-support">DX Commander / Attic EFHW · uncontrolled observations</p>
-        <p class="summary-finding-population">
-          <strong>Population:</strong> unique recorded remote paths per antenna, whether or not the receiver was active in both cycles
-        </p>
-      </article>
-    
-  </div>
-  <aside class="summary-principal-limitation" aria-label="Principal limitation">
-    <strong>Principal limitation:</strong> Unmatched paths: 89 Attic EFHW / 281 DX Commander.
-  </aside>
+  </details>
+  <article class="summary-primary-result" aria-label="Primary same-path signal result">
+    <div class="summary-primary-measurement">
+      <span class="badge availability-status status-available">
+        Available
+      </span>
+      <p class="summary-primary-value">+5 dB</p>
+      <p class="summary-primary-label">Median signal difference on the same remote paths</p>
+    </div>
+    <div class="summary-primary-explanation">
+      <p class="summary-primary-answer">
+        <strong>On remote paths heard with both antennas, DX Commander&#39;s median received signal was 5 dB higher than Attic EFHW&#39;s during this recorded run.</strong>
+      </p>
+      <p class="summary-primary-support">83 shared paths · 327 matched observations · 7 alternating blocks</p>
+    </div>
+    <aside class="summary-principal-limitation" aria-label="Principal limitation">
+      <strong>Most important limitation:</strong> Unmatched paths: 89 Attic EFHW / 281 DX Commander.
+    </aside>
+  </article>
+  <section class="summary-secondary-results" aria-labelledby="summary-secondary-title">
+    <div class="summary-secondary-heading">
+      <h3 id="summary-secondary-title">Other evidence, kept separate</h3>
+      <p>These numbers answer different questions and do not change the dB result above.</p>
+    </div>
+    <div class="summary-secondary-findings">
+      
+        <article class="summary-finding">
+          <div class="summary-finding-heading">
+            <h4>Detection with the same active receivers</h4>
+            <span class="badge availability-status status-unavailable">
+              Unavailable
+            </span>
+          </div>
+          <p class="summary-finding-result">Activity coverage unknown</p>
+          <p class="summary-finding-support">Uncontrolled path totals are not substituted for this population.</p>
+        </article>
+      
+        <article class="summary-finding">
+          <div class="summary-finding-heading">
+            <h4>All observed remote paths</h4>
+            <span class="badge availability-status status-available">
+              Available
+            </span>
+          </div>
+          <p class="summary-finding-result">133 vs 120 paths</p>
+          <p class="summary-finding-support">DX Commander / Attic EFHW · uncontrolled observations</p>
+        </article>
+      
+    </div>
+  </section>
   
   <details class="audit-disclosure summary-condition-detail">
     <summary>Review exact evidence for this condition</summary>
@@ -1986,18 +2108,33 @@ main.summary {
     
   </ul>
 </nav><details class="panel reading-guide summary-reading-rules">
-  <summary>Two rules for reading this Summary</summary>
+  <summary>What these results compare</summary>
   <div class="reading-guide-body">
-    <ul>
-      <li>
-        Missing public evidence is not a zero-strength measurement unless active-receiver evidence establishes a listening opportunity.
-      </li>
-      
-        <li>
-          Results describe this recorded run and do not establish a universal antenna ranking.
-        </li>
-      
-    </ul>
+    
+      <dl class="summary-population-definitions">
+        <div>
+          <dt>Same-path signal</dt>
+          <dd>
+            Signal reports from remote paths heard with both antennas within the same eligible alternating block and test condition.
+          </dd>
+        </div>
+        <div>
+          <dt>Same active receivers</dt>
+          <dd>
+            Detection outcomes only for receivers confirmed active during both antenna cycles in an eligible block.
+          </dd>
+        </div>
+        <div>
+          <dt>All observed paths</dt>
+          <dd>
+            Every unique recorded remote path per antenna, including paths without a confirmed listening opportunity in both cycles.
+          </dd>
+        </div>
+      </dl>
+      <p>
+        These populations are not interchangeable. Missing public evidence is not a zero-strength measurement, and this recorded run does not establish a universal antenna ranking.
+      </p>
+    
   </div>
 </details><section id="same-path-signal"
          class="panel question-section summary-finding-section"

@@ -38,6 +38,30 @@
     padding: 0.15rem 0.25rem;
     margin: 0.15rem 0;
   }
+  .summary.summary-small .summary-run-details {
+    margin: 0.1rem 0 0.2rem;
+  }
+  .summary.summary-small .summary-primary-result {
+    gap: 0.2rem 0.35rem;
+    padding: 0.3rem;
+  }
+  .summary.summary-small .summary-primary-value {
+    font-size: 1.9rem;
+  }
+  .summary.summary-small .summary-primary-support,
+  .summary.summary-small .summary-primary-label,
+  .summary.summary-small .summary-secondary-heading p,
+  .summary.summary-small .summary-finding-support {
+    font-size: 7pt;
+  }
+  .summary.summary-small .summary-principal-limitation {
+    padding: 0.25rem 0.35rem;
+  }
+  .summary.summary-small .summary-secondary-results {
+    gap: 0.2rem 0.35rem;
+    margin-top: 0.2rem;
+    padding-top: 0.2rem;
+  }
   .summary.summary-small p {
     margin: 0.15rem 0;
   }

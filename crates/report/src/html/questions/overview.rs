@@ -7,13 +7,15 @@ use crate::html::{
     view::{
         AvailabilityFactView, GoalLensView, HeadlineFactView, HeadlineGroupView,
         NavigationLinkView, NavigationView, NoticeView, OverviewResultRowView, OverviewView,
-        ReadingGuideView, SummaryFindingView, SummaryOverviewView,
+        ReadingGuideView, SummaryFindingView, SummaryOverviewView, SummaryPrimaryResultView,
     },
 };
 use crate::ReportAcquisitionWorkflowStatus;
 
+mod summary_results;
 mod zero_evidence;
 
+use summary_results::{summary_primary_result, summary_secondary_findings};
 use zero_evidence::{acquisition_notices, zero_evidence_diagnosis};
 
 pub(in super::super) fn render_question_navigation(
@@ -301,8 +303,8 @@ fn summary_overview_view(report: &SessionReport) -> SummaryOverviewView {
             "{} · {} · {goal} · {bands} · {directions}; {mode}",
             scope.station.callsign, scope.station.grid,
         ),
-        interpretation: summary_scoped_interpretation(report),
-        findings: summary_findings(report),
+        primary_result: summary_primary_result(report),
+        secondary_findings: summary_secondary_findings(report),
         principal_limitation: summary_principal_limitation(report),
         goal_lens: goal_lens_view(report),
         headline_groups: headline_groups(report),
@@ -330,147 +332,6 @@ fn goal_lens_view(report: &SessionReport) -> Option<GoalLensView> {
                 .join("; ")
         }),
     })
-}
-
-fn summary_scoped_interpretation(report: &SessionReport) -> String {
-    if let Some(diagnosis) = zero_evidence_diagnosis(report) {
-        return diagnosis;
-    }
-    match report.overview.comparison_availability {
-        antennabench_analysis::ComparisonAvailability::NotApplicable => {
-            "This session profiles one antenna. Comparative signal and detection questions do not apply; review its recorded footprint and repetition evidence when available."
-                .to_string()
-        }
-        antennabench_analysis::ComparisonAvailability::UnsupportedComparisonShape => {
-            "This session shape cannot support an A/B comparison; available observed-path evidence remains descriptive."
-                .to_string()
-        }
-        antennabench_analysis::ComparisonAvailability::NoEligibleBlocks => {
-            "No eligible alternating block supports a paired comparison; available observed-path evidence remains uncontrolled."
-                .to_string()
-        }
-        antennabench_analysis::ComparisonAvailability::NoMatchedPaths => {
-            "Usable observations were recorded, but none formed a shared path for signal comparison; controlled detection and uncontrolled observed paths remain separate when present."
-                .to_string()
-        }
-        antennabench_analysis::ComparisonAvailability::DescriptivePairsAvailable => {
-            "Shared-path signal, controlled detection, and uncontrolled observed paths answer separate questions; none is combined into a broader stronger-results claim."
-                .to_string()
-        }
-    }
-}
-
-fn summary_findings(report: &SessionReport) -> Vec<SummaryFindingView> {
-    let answerability = &report.overview.answerability;
-    let evidence = |family| {
-        report
-            .overview
-            .strata
-            .iter()
-            .filter_map(|row| {
-                headline_evidence(report, row)
-                    .into_iter()
-                    .find(|fact| fact.family == family)
-            })
-            .collect::<Vec<_>>()
-    };
-    let shared = evidence(crate::ReportQuestionFamily::SharedPathSignal);
-    let controlled = evidence(crate::ReportQuestionFamily::CommonOpportunityDetection);
-    let observed = evidence(crate::ReportQuestionFamily::ObservedReach);
-    let controlled_limited = report
-        .reporter_activity
-        .joint_summaries
-        .iter()
-        .any(|summary| {
-            matches!(
-                summary.coverage,
-                antennabench_analysis::ReporterActivityCoverage::Partial
-                    | antennabench_analysis::ReporterActivityCoverage::Truncated
-            )
-        });
-    let mut controlled_finding = summary_finding(
-        "Controlled common-opportunity detection",
-        if answerability.paired_detectability == PairedDetectabilityAnswerability::Available {
-            if controlled_limited { "Limited" } else { "Available" }
-        } else {
-            "Unavailable"
-        },
-        "receivers confirmed active in both cycles of an eligible block for the same comparison condition",
-        controlled,
-        paired_detectability_answerability_text(answerability.paired_detectability),
-        "Uncontrolled path totals are not substituted for this population.",
-    );
-    if controlled_limited {
-        controlled_finding.support = format!(
-            "{} Activity coverage was partial or truncated; rates use only retained known opportunities.",
-            controlled_finding.support,
-        );
-    }
-    vec![
-        summary_finding(
-            "Paired shared-path signal",
-            if answerability.same_path_signal == SamePathSignalAnswerability::Available {
-                "Available"
-            } else {
-                "Unavailable"
-            },
-            "finite-SNR reports from the same remote path within the same eligible alternating block and comparison condition",
-            shared,
-            same_path_answerability_text(answerability.same_path_signal),
-            "Missing shared paths are not a 0 dB result.",
-        ),
-        controlled_finding,
-        summary_finding(
-            "Uncontrolled unique observed paths",
-            if answerability.observed_reach == ObservedReachAnswerability::Available {
-                "Available"
-            } else {
-                "Unavailable"
-            },
-            "unique recorded remote paths per antenna, whether or not the receiver was active in both cycles",
-            observed,
-            match answerability.observed_reach {
-                ObservedReachAnswerability::Available => "Available from unique observed paths",
-                ObservedReachAnswerability::NoUsablePaths => "No usable observed paths",
-            },
-            "These descriptive footprint counts are not a controlled coverage comparison.",
-        ),
-    ]
-}
-
-fn summary_finding(
-    label: &'static str,
-    status: &'static str,
-    population: &'static str,
-    evidence: Vec<HeadlineEvidence>,
-    unavailable_result: &'static str,
-    unavailable_support: &'static str,
-) -> SummaryFindingView {
-    let status_class = match status {
-        "Available" => "available",
-        "Limited" => "limited",
-        _ => "unavailable",
-    };
-    let (result, support) = match evidence.as_slice() {
-        [fact] => (fact.value.clone(), fact.detail.clone()),
-        [] => (
-            unavailable_result.to_string(),
-            unavailable_support.to_string(),
-        ),
-        facts => (
-            format!("Available in {} separate conditions", facts.len()),
-            "Exact values remain separated by direction, band, mode, evidence kind, and source."
-                .to_string(),
-        ),
-    };
-    SummaryFindingView {
-        label,
-        status,
-        status_class,
-        population,
-        result,
-        support,
-    }
 }
 
 fn summary_principal_limitation(report: &SessionReport) -> String {

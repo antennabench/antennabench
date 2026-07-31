@@ -1,17 +1,34 @@
 <details class="panel reading-guide summary-reading-rules">
-  <summary>Two rules for reading this Summary</summary>
+  <summary>What these results compare</summary>
   <div class="reading-guide-body">
-    <ul>
-      <li>
-        Missing public evidence is not a zero-strength measurement unless active-receiver evidence establishes a listening opportunity.
-      </li>
-      {% if single_antenna %}
-        <li>Results describe this recorded antenna and do not infer unobserved coverage.</li>
-      {% else %}
-        <li>
-          Results describe this recorded run and do not establish a universal antenna ranking.
-        </li>
-      {% endif %}
-    </ul>
+    {% if single_antenna %}
+      <p>
+        This Summary describes the recorded antenna and observed remote paths in this run. It does not infer unobserved coverage.
+      </p>
+    {% else %}
+      <dl class="summary-population-definitions">
+        <div>
+          <dt>Same-path signal</dt>
+          <dd>
+            Signal reports from remote paths heard with both antennas within the same eligible alternating block and test condition.
+          </dd>
+        </div>
+        <div>
+          <dt>Same active receivers</dt>
+          <dd>
+            Detection outcomes only for receivers confirmed active during both antenna cycles in an eligible block.
+          </dd>
+        </div>
+        <div>
+          <dt>All observed paths</dt>
+          <dd>
+            Every unique recorded remote path per antenna, including paths without a confirmed listening opportunity in both cycles.
+          </dd>
+        </div>
+      </dl>
+      <p>
+        These populations are not interchangeable. Missing public evidence is not a zero-strength measurement, and this recorded run does not establish a universal antenna ranking.
+      </p>
+    {% endif %}
   </div>
 </details>

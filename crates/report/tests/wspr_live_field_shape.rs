@@ -277,9 +277,10 @@ fn confirmed_source_cycles_survive_projection_analysis_and_both_reports() {
     assert!(!summary.contains("Common-opportunity distance and bearing cells"));
     assert!(!summary.contains("<svg class=\"coverage-world\""));
     let summary_document = ReportDocument::parse(&summary);
-    summary_document.assert_count(".summary-finding", 3);
+    summary_document.assert_count(".summary-primary-result", 1);
+    summary_document.assert_count(".summary-finding", 2);
     assert!(summary.contains(
-        "Shared-path signal, controlled detection, and uncontrolled observed paths answer separate questions"
+        "These numbers answer different questions and do not change the dB result above"
     ));
     assert!(summary.contains("180 opportunities"));
     assert!(summary.contains("unique observed paths"));
@@ -290,7 +291,7 @@ fn confirmed_source_cycles_survive_projection_analysis_and_both_reports() {
             .count(),
         1
     );
-    assert!(summary.contains("<details class=\"goal-help\">"));
+    assert!(summary.contains("<details class=\"summary-run-details\" open>"));
     assert!(summary.contains("Methods and unavailable questions"));
 }
 
@@ -424,7 +425,7 @@ fn zero_matched_paths_still_render_useful_common_opportunity_geography() {
         assert!(html.contains("session-scoped common-opportunity evidence"));
         assert!(html.contains("Separate antenna detection-rate maps"));
     }
-    assert!(summary.contains("Controlled common-opportunity detection"));
+    assert!(summary.contains("Detection with the same active receivers"));
     assert!(!summary.contains("Most pronounced recorded cell"));
     assert!(!summary.contains("Separate antenna detection-rate maps"));
     assert!(summary.contains("Observed footprint"));

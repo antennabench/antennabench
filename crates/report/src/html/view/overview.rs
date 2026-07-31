@@ -35,16 +35,24 @@ pub(in crate::html) struct SummaryFindingView {
     pub(in crate::html) label: &'static str,
     pub(in crate::html) status: &'static str,
     pub(in crate::html) status_class: &'static str,
-    pub(in crate::html) population: &'static str,
     pub(in crate::html) result: String,
+    pub(in crate::html) support: String,
+}
+
+#[derive(Debug, Clone)]
+pub(in crate::html) struct SummaryPrimaryResultView {
+    pub(in crate::html) status: &'static str,
+    pub(in crate::html) status_class: &'static str,
+    pub(in crate::html) value: String,
+    pub(in crate::html) explanation: String,
     pub(in crate::html) support: String,
 }
 
 #[derive(Debug, Clone)]
 pub(in crate::html) struct SummaryOverviewView {
     pub(in crate::html) context: String,
-    pub(in crate::html) interpretation: String,
-    pub(in crate::html) findings: Vec<SummaryFindingView>,
+    pub(in crate::html) primary_result: SummaryPrimaryResultView,
+    pub(in crate::html) secondary_findings: Vec<SummaryFindingView>,
     pub(in crate::html) principal_limitation: String,
     pub(in crate::html) goal_lens: Option<GoalLensView>,
     pub(in crate::html) headline_groups: Vec<HeadlineGroupView>,

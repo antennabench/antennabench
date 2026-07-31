@@ -488,12 +488,19 @@ function captureReportReadingPosition(reportFrame) {
   }
 }
 
-function restoreReportReadingPosition(reportFrame, position) {
-  if (!position.hash && !position.focusedId && position.scrollRatio === 0) return;
+export function prepareEmbeddedReportFrame(reportFrame, position = {
+  hash: "",
+  focusedId: "",
+  scrollRatio: 0,
+}) {
   reportFrame.addEventListener?.("load", () => {
     try {
       const document = reportFrame.contentDocument;
       const view = reportFrame.contentWindow;
+      if (document?.documentElement) {
+        document.documentElement.dataset.reportSurface = "embedded";
+      }
+      document?.querySelector?.(".summary-run-details")?.removeAttribute?.("open");
       const hashTarget = position.hash
         ? document?.getElementById(position.hash.slice(1))
         : null;
@@ -531,7 +538,7 @@ export function updateReportFrame(reportFrame, state, reportDocuments) {
     ? state.session.summaryHtml
     : state.session.reportHtml;
   const nextUrl = reportDocuments.create(reportHtml);
-  restoreReportReadingPosition(reportFrame, readingPosition);
+  prepareEmbeddedReportFrame(reportFrame, readingPosition);
   try {
     reportFrame.removeAttribute?.("srcdoc");
     reportFrame.src = `${nextUrl}${readingPosition.hash}`;
