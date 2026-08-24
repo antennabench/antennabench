@@ -26,10 +26,10 @@
     "@cloudflare/containers": "0.3.7"
   },
   "devDependencies": {
-    "@types/node": "26.1.2",
-    "astro": "7.1.5",
+    "@types/node": "26.2.0",
+    "astro": "7.2.4",
     "typescript": "7.0.2",
-    "vitest": "4.1.10",
-    "wrangler": "4.115.0"
+    "vitest": "4.1.11",
+    "wrangler": "4.125.0"
   }
 }
