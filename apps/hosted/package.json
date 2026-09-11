@@ -29,7 +29,7 @@
     "@types/node": "26.1.2",
     "astro": "7.1.5",
     "typescript": "7.0.2",
-    "vitest": "4.1.10",
+    "vitest": "5.0.0",
     "wrangler": "4.115.0"
   }
 }
