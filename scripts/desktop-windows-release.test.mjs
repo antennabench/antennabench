@@ -126,6 +126,7 @@ test("Windows PowerShell is resolved independently of the inherited MSYS PATH", 
 test("native Windows subprocesses resolve toolchain and system tools from the mise Git Bash environment", { skip: process.platform !== "win32" }, () => {
   const env = nativeWindowsEnvironment();
   assert.equal(Object.keys(env).filter((key) => key.toLowerCase() === "path").length, 1);
+  assert.ok(Object.hasOwn(env, "PATH"), "Node command lookup requires options.env.PATH");
   const commands = [["git", ["--version"]], ["cargo", ["--version"]], ["taskkill.exe", ["/?"]]];
   for (const [command, args] of commands) {
     const result = spawnSync(command, args, { env, encoding: "utf8", timeout: 30_000, windowsHide: true });

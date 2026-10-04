@@ -125,13 +125,13 @@ export function nativeWindowsEnvironment(env = process.env) {
       nativePathCache.set(key, nativePath);
     }
   }
-  // Windows treats PATH and Path as the same variable. Node otherwise selects
-  // only the first spelling, which can be the unusable MSYS colon-separated one.
+  // Windows treats PATH and Path as the same variable. Node's command lookup
+  // specifically reads options.env.PATH, so retain only that uppercase spelling.
   const result = { ...env };
   for (const key of Object.keys(result)) {
     if (key.toLowerCase() === "path") delete result[key];
   }
-  result.Path = nativePath;
+  result.PATH = nativePath;
   return result;
 }
 
@@ -182,7 +182,7 @@ function nativeBuildEnvironment(env) {
     for (const key of Object.keys(buildEnv)) {
       if (key.toLowerCase() === "path") delete buildEnv[key];
     }
-    buildEnv.Path = `${path.dirname(cargo)};${nativePath}`;
+    buildEnv.PATH = `${path.dirname(cargo)};${nativePath}`;
     return { command: tauri, env: buildEnv };
   }
   return { command: "cargo-tauri.exe", env };
