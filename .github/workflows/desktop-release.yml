@@ -74,6 +74,7 @@ jobs:
 
       - name: Run portable and unattended desktop verification
         run: |
+          mise run desktop:release-test
           mise run test
           mise run desktop:frontend-test
           mise run desktop:e2e
@@ -203,6 +204,7 @@ jobs:
 
       - name: Run portable and unattended desktop verification
         run: |
+          mise run desktop:release-test
           mise run test
           mise run desktop:frontend-test
           mise run desktop:e2e

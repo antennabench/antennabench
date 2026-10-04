@@ -1,3 +1,4 @@
 crates/report/assets/natural-earth-110m-coastline.txt text eol=lf
+apps/desktop/THIRD_PARTY_NOTICES.txt text eol=lf
 crates/report/templates/** text eol=lf
 crates/report/styles/** text eol=lf
