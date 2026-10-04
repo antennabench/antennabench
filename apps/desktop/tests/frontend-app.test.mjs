@@ -166,6 +166,12 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     value: vi.fn(),
   });
   vi.useFakeTimers();
+  const waitForDesktopState = async (check) => {
+    // Native responses below settle immediately. Drain their Promise chains
+    // without advancing countdown/polling timers or doing unrelated renders.
+    await vi.advanceTimersByTimeAsync(0);
+    check();
+  };
   const calls = [];
   const review = {
     valid: true,
@@ -450,12 +456,12 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
   window.addEventListener("unhandledrejection", recordError);
   await import("../frontend/app.mjs?headless-composition");
   try {
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(document.querySelector('[data-panel="saved"]').hidden, false);
       assert.match(elements.savedCatalog.textContent, /W1AW/);
       assert.match(elements.savedCatalog.textContent, /View report/);
     });
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.ok(
         [...elements.controllerProfileSelect.options]
           .some((option) => option.value === "profile-1"),
@@ -466,7 +472,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     const profileField = (name) => elements.setupForm.querySelector(
       `[data-setup-field="${name}"]`,
     );
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(profileField("controllerProfileName").value, "Bench switch");
     });
     assert.equal(elements.controllerProfileSelect.value, "profile-1");
@@ -484,14 +490,14 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     preservedTarget.value = "relay-preserved";
     elements.controllerProfileSelect.value = "";
     elements.controllerProfileSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(profileField("controllerProfileName").value, "");
       assert.equal(profileField("controllerTimeoutSeconds").value, "10");
     });
     assert.equal(preservedTarget.value, "relay-preserved");
     elements.controllerProfileSelect.value = "profile-1";
     elements.controllerProfileSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(profileField("controllerProfileName").value, "Bench switch");
     });
 
@@ -500,7 +506,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     assert.equal(profileField("controllerProfileName").value, "Unsaved local edit");
 
     elements.controllerProfileSave.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(profileField("controllerProfileName").value, "Bench switch updated");
     });
     assert.equal(profileField("controllerTimeoutSeconds").value, "15");
@@ -511,7 +517,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     assert.equal(elements.controllerProfileRefresh.hidden, false);
     assert.match(elements.controllerProfileStatus.textContent, /Profile save committed/);
     elements.controllerProfileRefresh.click();
-    await vi.waitFor(() => assert.equal(elements.controllerProfileRefresh.hidden, true));
+    await waitForDesktopState(() => assert.equal(elements.controllerProfileRefresh.hidden, true));
     assert.equal(
       calls.filter(([command]) => command === "save_antenna_controller_profile").length,
       1,
@@ -519,7 +525,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     );
     elements.controllerProfileDelete.focus();
     elements.controllerProfileDelete.click();
-    await vi.waitFor(() => assert.equal(elements.controllerProfileDeleteDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.controllerProfileDeleteDialog.open, true));
     assert.equal(
       document.activeElement,
       elements.controllerProfileDeleteCancel,
@@ -547,7 +553,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     elements.controllerProfileDeleteDialog.dispatchEvent(
       new Event("cancel", { cancelable: true }),
     );
-    await vi.waitFor(() => assert.equal(elements.controllerProfileDeleteDialog.open, false));
+    await waitForDesktopState(() => assert.equal(elements.controllerProfileDeleteDialog.open, false));
     assert.equal(document.activeElement, elements.controllerProfileDelete);
     assert.equal(
       calls.filter(([command]) => command === "delete_antenna_controller_profile").length,
@@ -556,7 +562,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     );
 
     elements.controllerProfileDelete.click();
-    await vi.waitFor(() => assert.equal(elements.controllerProfileDeleteDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.controllerProfileDeleteDialog.open, true));
     elements.controllerProfileDeleteConfirm.click();
     elements.controllerProfileDeleteConfirm.click();
     assert.equal(elements.controllerProfileDeletePending.hidden, false);
@@ -576,26 +582,26 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       "repeated confirmation cannot duplicate the request",
     );
     resolveControllerProfileDelete();
-    await vi.waitFor(() => assert.equal(elements.controllerProfileDeleteDialog.open, false));
+    await waitForDesktopState(() => assert.equal(elements.controllerProfileDeleteDialog.open, false));
     assert.equal(elements.controllerProfileSelect.value, "");
     assert.equal(profileField("controllerProfileName").value, "");
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(document.activeElement, elements.controllerProfileStatus);
     });
     assert.match(elements.controllerProfileStatus.textContent, /Profile deleted/);
     elements.savedImport.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.match(elements.savedImportFeedback.textContent, /imported\.session\.antennabundle was imported/);
       assert.match(elements.savedCatalog.textContent, /K1ABC/);
       assert.equal(elements.savedImportActions.hidden, false);
     });
     elements.savedImportReveal.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.ok(calls.some(([command, payload]) => command === "reveal_managed_session"
         && payload.locatorId === "locator-imported-refreshed"));
     });
     elements.savedImportOpen.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.ok(calls.some(([command, payload]) => command === "open_managed_session"
         && payload.locatorId === "locator-imported-refreshed"));
     });
@@ -603,7 +609,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       '[data-locator-id="locator-existing"] [data-saved-action="export"]',
     );
     exportButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       exportButton = elements.savedCatalog.querySelector(
         '[data-locator-id="locator-existing"] [data-saved-action="export"]',
       );
@@ -615,7 +621,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     });
     let deleteButton = elements.savedCatalog.querySelector('[data-saved-action="delete"]');
     deleteButton.click();
-    await vi.waitFor(() => assert.equal(elements.savedDeleteDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.savedDeleteDialog.open, true));
     assert.equal(document.activeElement, elements.savedDeleteCancel, "Cancel receives default focus");
     assert.match(elements.savedDeleteIdentity.textContent, /W1AW.*existing\.session\.antennabundle/);
     elements.savedDeleteConfirm.focus();
@@ -632,7 +638,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
 
     elements.mainContent.scrollTop = 137;
     elements.savedCatalog.querySelector('[data-saved-action="open"][data-intent="report"]').click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#report");
       assert.ok(calls.some(([command, payload]) => command === "open_managed_session"
         && payload.locatorId === "locator-existing"));
@@ -642,7 +648,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     assert.equal(elements.reportActiveRunButton.hidden, true, "terminal sessions do not offer Active run");
     assert.equal(elements.reportSummaryModeButton.getAttribute("aria-pressed"), "true");
     elements.reportFullModeButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.reportFrame.getAttribute("src"), "blob:headless-report-2");
       assert.equal(elements.reportFullModeButton.getAttribute("aria-pressed"), "true");
     });
@@ -653,16 +659,16 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       "mode switching performs no report refresh",
     );
     elements.reportDiagnosticsButton.click();
-    await vi.waitFor(() => assert.equal(elements.reportDiagnosticsDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.reportDiagnosticsDialog.open, true));
     assert.equal(document.activeElement, elements.reportDiagnosticsClose);
     elements.reportDiagnosticsDialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     assert.equal(elements.reportDiagnosticsDialog.open, false);
     assert.equal(document.activeElement, elements.reportDiagnosticsButton);
     elements.reportExportButton.click();
-    await vi.waitFor(() => assert.equal(elements.reportExportDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.reportExportDialog.open, true));
     assert.equal(document.activeElement, elements.reportExportClose);
     elements.reportSummaryExportButton.click();
-    await vi.waitFor(() => assert.equal(elements.reportReplaceDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.reportReplaceDialog.open, true));
     assert.equal(document.activeElement, elements.reportReplaceCancel);
     assert.equal(elements.reportReplaceIdentity.textContent, "existing-summary.html");
     elements.reportReplaceConfirm.focus();
@@ -672,7 +678,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     }));
     assert.equal(document.activeElement, elements.reportReplaceCancel, "report modal traps focus");
     elements.reportReplaceDialog.dispatchEvent(new Event("cancel", { cancelable: true }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.reportReplaceDialog.open, false);
       assert.equal(document.activeElement, elements.reportSummaryExportButton);
     });
@@ -680,15 +686,15 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       && payload.pendingExportId === "pending-summary_html"));
 
     elements.reportSummaryModeButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.reportFrame.getAttribute("src"), "blob:headless-report-3");
       assert.equal(elements.reportSummaryModeButton.getAttribute("aria-pressed"), "true");
     });
     elements.reportFullExportButton.click();
-    await vi.waitFor(() => assert.equal(elements.reportReplaceDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.reportReplaceDialog.open, true));
     elements.reportReplaceConfirm.click();
     elements.reportReplaceConfirm.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.reportReplaceDialog.open, false);
       assert.equal(elements.reportExportDialog.open, false);
       assert.equal(document.activeElement, elements.reportExportButton);
@@ -701,7 +707,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     );
     assert.equal(elements.reportReturnButton.textContent, "Back to Saved sessions");
     elements.reportReturnButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#saved");
       assert.equal(elements.mainContent.scrollTop, 137);
       assert.equal(document.activeElement.dataset.savedAction, "open");
@@ -709,12 +715,12 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       assert.equal(document.activeElement.dataset.locatorId, "locator-existing");
     });
     elements.savedCatalog.querySelector('[data-saved-action="open"][data-intent="report"]').click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.match(elements.savedCatalog.textContent, /saved bundle moved/);
       assert.equal(elements.reportFrame.getAttribute("src"), "blob:headless-report-3");
     });
     elements.savedNew.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#setup");
       assert.equal(document.activeElement.id, "setup-title");
     });
@@ -791,7 +797,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     elements.setupForm.querySelectorAll("[data-remove-antenna]")[2].click();
 
     elements.useCurrentLocationButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(grid.value, "FN42li");
       assert.match(elements.locationStatus.textContent, /Estimated FN42li/);
     });
@@ -799,7 +805,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     const submit = new Event("submit", { bubbles: true, cancelable: true });
     assert.equal(elements.setupForm.dispatchEvent(submit), false);
     assert.equal(submit.defaultPrevented, true);
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.setupCreateButton.disabled, false);
       assert.equal(elements.setupReviewPanel.hidden, false);
     });
@@ -819,7 +825,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     ]);
 
     elements.setupCreateButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#run");
       assert.equal(document.querySelector('[data-panel="run"]').hidden, false);
       assert.match(elements.setupStatus.textContent, /Session ready/);
@@ -828,7 +834,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     assert.equal(elements.managedLocationNotice.hidden, false);
     assert.match(elements.managedLocationNotice.textContent, /Session saved in AntennaBench Sessions/);
     elements.managedLocationReveal.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.ok(calls.some(([command, payload]) => command === "reveal_managed_session"
         && payload.locatorId === "locator-headless"));
     });
@@ -845,12 +851,12 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     );
     elements.mainContent.scrollTop = 181;
     reportNavigation.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#report");
       assert.equal(elements.reportReturnButton.textContent, "Back to Active run");
     });
     elements.reportReturnButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#run");
       assert.equal(elements.mainContent.scrollTop, 181);
       assert.equal(document.activeElement, reportNavigation);
@@ -866,7 +872,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     elements.wsjtxReadinessAcknowledge.click();
     assert.equal(start.disabled, false);
     start.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.ok(calls.some(([command]) => command === "mutate_active_session_conductor"));
       assert.equal(elements.wsjtxReadiness.hidden, true);
     });
@@ -878,7 +884,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       command === "mutate_active_session_conductor"
       && payload.request.action.kind === "skip_wspr_cycle");
     skip.click();
-    await vi.waitFor(() => assert.equal(elements.skipCycleDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.skipCycleDialog.open, true));
     assert.equal(document.activeElement, elements.skipCycleReason);
     assert.match(elements.skipCycleIdentity.textContent, /Cycle 1 · DXC · Transmit · 20m/);
     assert.match(elements.skipCycleDescription.textContent, /this one planned cycle/);
@@ -890,14 +896,14 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     }));
     assert.equal(document.activeElement, elements.skipCycleReason, "skip modal traps focus");
     elements.skipCycleDialog.dispatchEvent(new Event("cancel", { cancelable: true }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.skipCycleDialog.open, false);
       assert.equal(document.activeElement, skip, "Escape restores skip-action focus");
     });
     assert.equal(skipCalls().length, 0, "cancel records nothing");
 
     skip.click();
-    await vi.waitFor(() => assert.equal(elements.skipCycleDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.skipCycleDialog.open, true));
     elements.skipCycleReason.value = "storm nearby";
     elements.skipCycleConfirm.click();
     elements.skipCycleConfirm.click();
@@ -925,7 +931,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
         band: "20m",
       },
     }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.skipCycleDialog.open, false);
       assert.equal(document.activeElement, skip);
       assert.match(elements.skipCycleFeedback.textContent, /Cycle skipped/);
@@ -937,7 +943,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     assert.equal(elements.abortRunControl.hidden, false);
     elements.abortRunTrigger.focus();
     elements.abortRunTrigger.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.abortRunDialog.open, true);
       assert.equal(document.activeElement, elements.abortRunCancel);
     });
@@ -955,14 +961,14 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     }));
     assert.equal(document.activeElement, elements.abortRunReason, "Abort modal traps focus");
     elements.abortRunDialog.dispatchEvent(new Event("cancel", { cancelable: true }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.abortRunDialog.open, false);
       assert.equal(document.activeElement, elements.abortRunTrigger);
     });
     assert.equal(abortCalls().length, 0, "Escape submits no abandonment");
 
     elements.abortRunTrigger.click();
-    await vi.waitFor(() => assert.equal(elements.abortRunDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.abortRunDialog.open, true));
     responses.active_session_conductor = conductorView({
       revision: 4,
       actionToken: "token-4",
@@ -970,7 +976,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       guidance: "Final public collection needs attention",
     });
     elements.conductorRefreshButtons[0].click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.abortRunDialog.open, false);
       assert.match(elements.abortRunFeedback.textContent, /run changed before Abort was confirmed/i);
       assert.equal(document.activeElement, elements.abortRunTrigger);
@@ -978,7 +984,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     assert.equal(elements.abortRunControl.hidden, false, "Abort remains visible during finalization");
 
     elements.abortRunTrigger.click();
-    await vi.waitFor(() => assert.equal(elements.abortRunDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.abortRunDialog.open, true));
     elements.abortRunReason.value = "controller did not settle";
     elements.abortRunConfirm.click();
     elements.abortRunConfirm.click();
@@ -1000,7 +1006,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       message: "The terminal checkpoint could not be written.",
       detail: "injected persistence failure",
     });
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.abortRunDialog.open, false);
       assert.match(elements.abortRunFeedback.textContent, /terminal checkpoint could not be written/i);
       assert.equal(document.activeElement, elements.abortRunTrigger);
@@ -1012,7 +1018,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
     );
 
     elements.abortRunTrigger.click();
-    await vi.waitFor(() => assert.equal(elements.abortRunDialog.open, true));
+    await waitForDesktopState(() => assert.equal(elements.abortRunDialog.open, true));
     elements.abortRunReason.value = "storm stopped field work";
     elements.abortRunConfirm.click();
     elements.abortRunConfirm.click();
@@ -1025,7 +1031,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       phase: "abandoned",
       nextIntent: null,
     }));
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(elements.abortRunDialog.open, false);
       assert.equal(elements.abortRunControl.hidden, true);
       assert.match(elements.abortRunFeedback.textContent, /Preserved evidence remains available/);
@@ -1042,7 +1048,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       },
     });
     elements.abortRunReport.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#report");
       assert.equal(document.querySelector('[data-panel="report"]').hidden, false);
       assert.equal(
@@ -1051,7 +1057,7 @@ test("the headless desktop relaunches into Saved sessions before creating a mana
       );
     });
     elements.reportReturnButton.click();
-    await vi.waitFor(() => {
+    await waitForDesktopState(() => {
       assert.equal(window.location.hash, "#saved");
       assert.equal(document.activeElement.id, "saved-title");
     });
