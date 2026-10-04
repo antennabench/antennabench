@@ -30,12 +30,5 @@
   "devDependencies": {
     "jsdom": "30.0.1",
     "prettier": "3.9.6"
-  },
-  "overrides": {
-    "wrangler@4.114.0": {
-      "miniflare@4.20260722.0": {
-        "sharp": "0.35.3"
-      }
-    }
   }
 }
