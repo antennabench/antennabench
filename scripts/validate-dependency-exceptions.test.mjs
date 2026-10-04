@@ -165,5 +165,5 @@ jobs:
 });
 
 test("the repository has no invalid or expired exceptions", () => {
-  assert.deepEqual(validateRepository(process.cwd(), TODAY), []);
+  assert.deepEqual(validateRepository(process.cwd(), new Date()), []);
 });
