@@ -152,6 +152,10 @@ function captureResult(command, args, options = {}) {
   return {
     ok: !result.error && result.status === 0,
     output: `${result.stdout ?? ""}${result.stderr ?? ""}`.trim(),
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    error: result.error?.message,
+    status: result.status,
   };
 }
 
@@ -249,12 +253,32 @@ function assertPinnedTool(actualOutput, expected, name) {
   return actualOutput.split(/\r?\n/, 1)[0];
 }
 
-function sourceEvidence(root) {
-  const commit = capture("git", ["rev-parse", "HEAD"], { cwd: root });
-  if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== commit) {
-    throw new Error(`GITHUB_SHA ${process.env.GITHUB_SHA} does not match checked-out commit ${commit}`);
+export function sourceEvidence(root, {
+  runGit = (args) => captureResult("git", args, { cwd: root }),
+  reportDiagnostic = (message) => console.warn(message),
+  expectedCommit = process.env.GITHUB_SHA,
+} = {}) {
+  function gitOutput(args) {
+    const result = runGit(args);
+    if (!result.ok) {
+      const reason = result.error ?? `exit ${result.status ?? "unknown"}`;
+      const output = result.output ?? `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+      throw new Error(`git ${args.join(" ")} failed (${reason})${output ? `:\n${output}` : ""}`);
+    }
+    if (result.stderr?.trim()) reportDiagnostic(`Git diagnostic (${args.join(" ")}):\n${result.stderr.trim()}`);
+    return result.stdout ?? "";
   }
-  const dirty = capture("git", ["status", "--porcelain"], { cwd: root }).length > 0;
+  const commit = gitOutput(["rev-parse", "HEAD"]).trim();
+  if (expectedCommit && expectedCommit !== commit) {
+    throw new Error(`GITHUB_SHA ${expectedCommit} does not match checked-out commit ${commit}`);
+  }
+  const porcelain = gitOutput(["status", "--porcelain"]).trimEnd();
+  const dirty = porcelain.trim().length > 0;
+  if (dirty) {
+    reportDiagnostic(`Git source changes:\n${porcelain}`);
+    const diff = gitOutput(["diff", "--stat"]).trim();
+    reportDiagnostic(`Git source diff:\n${diff || "(no tracked file changes)"}`);
+  }
   return { commit, dirty };
 }
 

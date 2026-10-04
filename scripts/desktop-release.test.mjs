@@ -16,6 +16,7 @@ import {
   readCompleteArtifactSet,
   readTargetManifest,
   resolveReleaseIdentityTag,
+  sourceEvidence,
   targetContract,
   validateStagedEntries,
   withAtomicDirectory,
@@ -24,6 +25,55 @@ import {
 const NOTICE_SHA256 = "735de7292f06881314cd7c94270871f67dca34d053f543fc498733205eb6050c";
 const WINDOWS_TARGET = "x86_64-pc-windows-msvc";
 const RELEASE_TARGETS = ["aarch64-apple-darwin", "x86_64-apple-darwin", WINDOWS_TARGET];
+
+test("Git source identity treats warning-only stderr as clean and retains diagnostics", () => {
+  const commit = "a".repeat(40);
+  const diagnostics = [];
+  const commands = [];
+  const source = sourceEvidence("unused", {
+    expectedCommit: commit,
+    reportDiagnostic: (message) => diagnostics.push(message),
+    runGit: (args) => {
+      commands.push(args);
+      return args[0] === "rev-parse"
+        ? { ok: true, stdout: `${commit}\r\n`, stderr: "" }
+        : { ok: true, stdout: "", stderr: "warning: LF will be replaced by CRLF\r\n" };
+    },
+  });
+  assert.deepEqual(source, { commit, dirty: false });
+  assert.deepEqual(commands, [["rev-parse", "HEAD"], ["status", "--porcelain"]]);
+  assert.match(diagnostics.join("\n"), /warning: LF will be replaced by CRLF/);
+});
+
+test("Git source changes remain dirty with changed paths and tracked diff diagnostics", () => {
+  const commit = "b".repeat(40);
+  const diagnostics = [];
+  const source = sourceEvidence("unused", {
+    expectedCommit: commit,
+    reportDiagnostic: (message) => diagnostics.push(message),
+    runGit: (args) => ({
+      ok: true,
+      stdout: args[0] === "rev-parse" ? `${commit}\n`
+        : args[0] === "status" ? " M apps/desktop/tauri.conf.json\r\n?? unexpected.txt\r\n"
+          : " apps/desktop/tauri.conf.json | 2 +-\n",
+      stderr: args[0] === "status" ? "warning: Git status diagnostic\n" : "",
+    }),
+  });
+  assert.deepEqual(source, { commit, dirty: true });
+  assert.match(diagnostics.join("\n"), / M apps\/desktop\/tauri\.conf\.json\r?\n\?\? unexpected\.txt/);
+  assert.match(diagnostics.join("\n"), /tauri\.conf\.json \| 2 \+-/);
+});
+
+test("Git source identity fails closed when status fails", () => {
+  const commit = "c".repeat(40);
+  assert.throws(() => sourceEvidence("unused", {
+    expectedCommit: commit,
+    reportDiagnostic: () => assert.fail("failed Git status must not become a warning-only clean state"),
+    runGit: (args) => args[0] === "rev-parse"
+      ? { ok: true, stdout: commit, stderr: "" }
+      : { ok: false, status: 128, stdout: "", stderr: "fatal: cannot read index" },
+  }), /git status --porcelain failed \(exit 128\):\nfatal: cannot read index/);
+});
 
 function windowsEvidence() {
   const signature = { authorities: [], classification: "unsigned", publishable: true, secure_timestamp: false };
