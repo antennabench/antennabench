@@ -14,6 +14,7 @@ import {
   checksumLines,
   inspectThirdPartyNotices,
   readCompleteArtifactSet,
+  readTargetManifest,
   resolveReleaseIdentityTag,
   targetContract,
   validateStagedEntries,
@@ -21,6 +22,18 @@ import {
 } from "./desktop-release.mjs";
 
 const NOTICE_SHA256 = "735de7292f06881314cd7c94270871f67dca34d053f543fc498733205eb6050c";
+const WINDOWS_TARGET = "x86_64-pc-windows-msvc";
+const RELEASE_TARGETS = ["aarch64-apple-darwin", "x86_64-apple-darwin", WINDOWS_TARGET];
+
+function windowsEvidence() {
+  const signature = { authorities: [], classification: "unsigned", publishable: true, secure_timestamp: false };
+  return {
+    architecture: "x86_64",
+    metadata: { build_version: "0.1.0", short_version: "0.1.0", minimum_windows: "11" },
+    signature,
+    executable_signature: { ...signature },
+  };
+}
 
 test("accepts stable versions and exact v-prefixed tags", () => {
   assert.equal(assertStableVersion("0.1.0"), "0.1.0");
@@ -76,6 +89,9 @@ test("target contracts make arm64 and Intel artifact names truthful", () => {
     archiveName("0.1.0", "x86_64-apple-darwin"),
     "AntennaBench-0.1.0-x86_64-apple-darwin.zip",
   );
+  assert.deepEqual(targetContract(WINDOWS_TARGET), { architecture: "x86_64", runner: "windows-2025" });
+  assert.equal(archiveName("0.1.0", WINDOWS_TARGET), "AntennaBench-0.1.0-x86_64-pc-windows-msvc-setup.exe");
+  assert.throws(() => archiveName("0.1.0", "aarch64-pc-windows-msvc"), /unsupported release target/);
 });
 
 test("manifest JSON and checksum entries use stable bytewise ordering", () => {
@@ -149,11 +165,11 @@ test("failed atomic staging leaves neither a final nor partial directory", async
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test("assembly emits the exact two-archive manifest and checksum set", async () => {
+test("assembly emits the exact Mac archives and Windows installer manifest and checksum set", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-release-assemble-"));
   try {
     const inputs = [];
-    for (const target of ["aarch64-apple-darwin", "x86_64-apple-darwin"]) {
+    for (const target of RELEASE_TARGETS) {
       const directory = path.join(root, "inputs", target);
       fs.mkdirSync(directory, { recursive: true });
       const filename = archiveName("0.1.0", target);
@@ -185,11 +201,12 @@ test("assembly emits the exact two-archive manifest and checksum set", async () 
       "AntennaBench-0.1.0-aarch64-apple-darwin.zip",
       "AntennaBench-0.1.0-release-manifest.json",
       "AntennaBench-0.1.0-x86_64-apple-darwin.zip",
+      "AntennaBench-0.1.0-x86_64-pc-windows-msvc-setup.exe",
       "NON_PUBLISHABLE.txt",
     ]);
     await assert.rejects(
       assembleArtifacts({ root, inputs, requirePublishable: true }),
-      /requires signed, notarized, publishable/,
+      /requires publishable target artifacts/,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -237,7 +254,7 @@ test("complete-set verification rechecks exact publishable bytes and trust evide
   try {
     const crypto = await import("node:crypto").then(({ default: value }) => value);
     const inputs = [];
-    for (const target of ["aarch64-apple-darwin", "x86_64-apple-darwin"]) {
+    for (const target of RELEASE_TARGETS) {
       const directory = path.join(root, "inputs", target);
       fs.mkdirSync(directory, { recursive: true });
       const filename = archiveName("0.1.0", target);
@@ -245,7 +262,7 @@ test("complete-set verification rechecks exact publishable bytes and trust evide
       fs.writeFileSync(
         path.join(directory, "artifact-manifest.json"),
         canonicalJson({
-          app: {
+          app: target === WINDOWS_TARGET ? windowsEvidence() : {
             metadata: { build_version: "0.1.0", short_version: "0.1.0" },
             signature: {
               authorities: ["Developer ID Application: Example (TEAMID)"],
@@ -278,9 +295,49 @@ test("complete-set verification rechecks exact publishable bytes and trust evide
       inputs.push(directory);
     }
     const output = await assembleArtifacts({ root, inputs, requirePublishable: true });
-    assert.equal(readCompleteArtifactSet(output).entries.length, 4);
+    assert.equal(readCompleteArtifactSet(output).entries.length, 5);
+    const installer = path.join(output, archiveName("0.1.0", WINDOWS_TARGET));
+    const original = fs.readFileSync(installer);
+    fs.appendFileSync(installer, "tampered");
+    assert.throws(() => readCompleteArtifactSet(output), /does not match the release manifest/);
+    fs.writeFileSync(installer, original);
     fs.appendFileSync(path.join(output, "AntennaBench-0.1.0-SHA256SUMS"), "unexpected\n");
     assert.throws(() => readCompleteArtifactSet(output), /does not exactly match/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("unsigned Windows permission cannot authorize unsigned Mac archives or false signing evidence", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-release-platform-policy-"));
+  const crypto = await import("node:crypto").then(({ default: value }) => value);
+  try {
+    function fixture(target, app) {
+      const directory = path.join(root, target);
+      fs.mkdirSync(directory, { recursive: true });
+      const filename = archiveName("0.1.0", target);
+      fs.writeFileSync(path.join(directory, filename), target);
+      const manifest = {
+        app,
+        artifact: { filename, sha256: crypto.createHash("sha256").update(target).digest("hex"), size: Buffer.byteLength(target) },
+        contract: { target }, publishable: true, schema_version: 1,
+        source: { commit: "0123456789abcdef0123456789abcdef01234567", dirty: false },
+        state: "complete", tag: "v0.1.0", version: "0.1.0",
+      };
+      fs.writeFileSync(path.join(directory, "artifact-manifest.json"), canonicalJson(manifest));
+      return directory;
+    }
+    const app = windowsEvidence();
+    assert.doesNotThrow(() => readTargetManifest(fixture(WINDOWS_TARGET, app)));
+    assert.throws(() => readTargetManifest(fixture("aarch64-apple-darwin", app)), /invalid classification/);
+    for (const field of ["signature", "executable_signature"]) {
+      const forged = windowsEvidence();
+      forged[field].classification = "authenticode";
+      assert.throws(() => readTargetManifest(fixture(WINDOWS_TARGET, forged)), /explicit unsigned/);
+    }
+    const incomplete = windowsEvidence();
+    delete incomplete.executable_signature;
+    assert.throws(() => readTargetManifest(fixture(WINDOWS_TARGET, incomplete)), /explicit unsigned/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

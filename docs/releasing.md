@@ -1,7 +1,14 @@
 # Desktop Releases
 
-AntennaBench publishes separate signed ZIP archives for Apple-silicon and Intel
-Macs running macOS 15 or later. A push of an existing stable
+AntennaBench's release contract includes separate signed ZIP archives for
+Apple-silicon and Intel Macs running macOS 15 or later, plus an unsigned per-user
+NSIS installer for Windows 11 x64. The Windows installer includes the offline
+Evergreen WebView2 Runtime installer and needs no paid signing service.
+[Decision 0030](decisions/0030-ship-unsigned-windows-x64-installers.md) records
+this platform-specific trust policy. Public downloads remain pending private
+draft proof and the owner promotion gates below.
+
+A push of an existing stable
 `vMAJOR.MINOR.PATCH` tag starts `.github/workflows/desktop-release.yml`. The
 workflow can create or verify a private GitHub draft; it cannot publish a
 stable release. Stable promotion is always an explicit repository-owner action.
@@ -22,8 +29,8 @@ deployment tags to `v*`. Store exactly these environment secrets:
 
 Do not use repository-level secrets for these values. Pull requests, ordinary
 CI, attestation, draft publication, and draft verification do not receive the
-environment or its secrets. Only the native signing job references them. It
-imports the certificate into a random temporary keychain, writes the private
+environment or its secrets. Only the native macOS signing jobs reference them.
+Each imports the certificate into a random temporary keychain, writes the private
 key to a mode-0600 temporary file, and removes both in a `finally` cleanup.
 
 Before the first public promotion, complete the owner security settings tracked
@@ -39,16 +46,17 @@ workflow steps.
 2. Create the matching `vMAJOR.MINOR.PATCH` tag at a commit reachable from
    `origin/main`, then push that tag. Do not reuse a retired release tag.
 3. Review the `desktop-release` environment deployment. Confirm the tag, source
-   commit, requested version, and expected two-target matrix before approving.
-4. Wait for both downloaded-draft verification jobs to pass. A completed run
+   commit, requested version, and expected three-target matrix before approving.
+4. Wait for all three downloaded-draft verification jobs to pass. A completed run
    has created a private draft, not a public release.
 
 Before credential access, the workflow independently checks the exact tag,
 workspace version, source commit, reachability from `origin/main`, tool pins,
-dependency policy, and fresh advisory data. It then builds each architecture on
-its native runner and transfers only the explicit non-publishable archive and
-manifest from the non-secret build. Protected jobs verify that manifest before
-importing credentials.
+dependency policy, and fresh advisory data. It then builds each target on
+its native runner and transfers only the explicit non-publishable install artifact and
+manifest from the non-secret build. Protected macOS jobs verify that manifest
+before importing Apple credentials. Windows follows the same tagged identity
+and preflight checks without accessing those credentials.
 
 The native build injects that same verified version, tag, clean source commit,
 target triple, and compile architecture into schema-v6 runtime identity. The
@@ -56,32 +64,42 @@ desktop build fails if any injected release value disagrees with Cargo or the
 checked-out source. A build timestamp is recorded only when the workflow
 explicitly provides `SOURCE_DATE_EPOCH`; wall-clock compile time is never used.
 
-Each app is Developer ID signed with hardened runtime and a secure timestamp,
-submitted with `notarytool`, stapled, and checked with strict `codesign`,
-`stapler`, and Gatekeeper verification. Assembly accepts only two publishable
-target manifests with one version, tag, and source commit. The final set is
-exactly:
+Each macOS app is Developer ID signed with hardened runtime and a secure
+timestamp, submitted with `notarytool`, stapled, and checked with strict `codesign`,
+`stapler`, and Gatekeeper verification. Windows verification silently installs
+the NSIS package into an isolated per-user destination, checks the installed x64
+PE executable's product/version metadata and packaged notices, confirms both the
+installer and executable are unsigned, proves a native window and WebView2
+process start, and uninstalls it. This check requires a clean Windows user;
+existing AntennaBench installations, running processes, or application data are
+not suitable verification inputs.
+
+Assembly accepts three publishable target manifests with one version, tag, and
+source commit. The final set is exactly:
 
 ```text
 AntennaBench-<version>-aarch64-apple-darwin.zip
 AntennaBench-<version>-x86_64-apple-darwin.zip
+AntennaBench-<version>-x86_64-pc-windows-msvc-setup.exe
 AntennaBench-<version>-release-manifest.json
 AntennaBench-<version>-SHA256SUMS
 ```
 
-GitHub build provenance is generated for all four files before the draft
+GitHub build provenance is generated for all five files before the draft
 mutation job receives `contents: write`. That is the only write permission in
 the workflow. The final native jobs download the actual draft assets and repeat
-checksum, manifest, ZIP extraction, embedded metadata, architecture, signature,
-staple, Gatekeeper, packaged third-party-notice, and attestation checks. Each
-application must contain the exact reviewed
-`Contents/Resources/THIRD_PARTY_NOTICES.txt`, including the complete
+checksum, manifest, native packaging, embedded metadata, architecture,
+platform trust, packaged third-party-notice, and attestation checks. Macs must
+again pass signature, staple, and Gatekeeper checks; Windows must again pass
+unsigned-state, installation, launch, and uninstall checks. The exact reviewed
+`THIRD_PARTY_NOTICES.txt` must be present in `Contents/Resources/` on macOS and
+beside the installed executable on Windows, including the complete
 CDLA-Permissive-2.0 agreement for the packaged CA-root data.
 
 ## Independent Download And Installation Check
 
-Download all four assets from the draft to a new directory. Verify the exact
-bytes before extracting either archive:
+Download all five assets from the draft to a new directory. On macOS, verify the
+exact bytes before extracting an archive:
 
 ```bash
 shasum -a 256 -c AntennaBench-<version>-SHA256SUMS
@@ -100,14 +118,45 @@ bundle and record the machine architecture, macOS version, tag, source commit,
 downloaded checksums, attestation output, launch result, and exported/reopened
 result in the release issue.
 
-The workflow proves the unattended equivalent, but the clean-system install and
-launch remain human release evidence. Do not promote based only on CI.
+On Windows 11 x64, verify checksums from PowerShell and the installer provenance:
+
+```powershell
+Get-Content "AntennaBench-<version>-SHA256SUMS" | ForEach-Object {
+  $digest, $name = $_ -split '  ', 2
+  if ((Get-FileHash -LiteralPath $name -Algorithm SHA256).Hash.ToLowerInvariant() -ne $digest) {
+    throw "Checksum mismatch: $name"
+  }
+}
+gh attestation verify AntennaBench-<version>-x86_64-pc-windows-msvc-setup.exe `
+  --repo antennabench/antennabench
+```
+
+Run the `setup.exe` installer as the intended user, then launch AntennaBench.
+The application executable and installer are unsigned. Windows may show an
+unknown-publisher or SmartScreen warning. Smart App Control or managed policy
+may block the installer or app. Use only the verified project release asset;
+the project does not recommend disabling Windows security or using a policy
+override.
+
+On a clean Windows 11 machine, record the exact OS version, x64 architecture,
+tag, source commit, checksums, attestations, installer and launch result, native
+open/save dialog behavior, rendered report, exported/reopened session, upgrade,
+and uninstall. Verify runtime installation without a separate download when
+WebView2 is absent. Station-location lookup is currently macOS-only; enter the
+station grid manually on Windows.
+
+The unattended desktop workflow exercises application boundaries without
+opening a window. Native installer/launch automation adds packaging evidence,
+but clean-system interactive behavior remains human release evidence on every
+supported user platform. Do not promote based only on CI.
 
 ## Promotion
 
 Review the draft notes and exact asset list after the clean-system check. Confirm
-the signing summary and complete notarization log retained by the workflow, both
-native downloaded-draft jobs, the checksum results, and GitHub attestations.
+the macOS signing summaries and complete notarization logs retained by the
+workflow, Windows unsigned-state and installation evidence, all three native
+downloaded-draft jobs, the checksum results, and GitHub attestations. Existing
+product gates for public promotion also remain in force.
 Then use GitHub's release UI to publish the existing draft as a stable release.
 Do not select a prerelease channel. This manual action is the stable-promotion
 approval and must occur only after immutable releases are enabled.
@@ -115,7 +164,7 @@ approval and must occur only after immutable releases are enabled.
 ## Retry, Failure, And Withdrawal
 
 Concurrency is serialized per tag. A retry may create a missing draft, fill an
-existing empty draft, or verify an already complete draft whose four assets are
+existing empty draft, or verify an already complete draft whose five assets are
 byte-identical. It fails on a partial asset set, an unexpected asset, different
 bytes, or an already published release. No command uses overwrite or clobber.
 
@@ -150,7 +199,8 @@ Common failures are intentionally terminal:
 - Notarization failures retain bounded submission JSON and the complete bounded
   notary log as workflow artifacts. Resolve Apple's reported finding before a
   new attempt.
-- Checksum, manifest, signature, staple, Gatekeeper, or attestation disagreement
-  means the candidate is not releasable. Never bypass the failed check.
+- Checksum, manifest, macOS trust, Windows unsigned-state/installation, or
+  attestation disagreement means the candidate is not releasable. Never bypass
+  the failed check.
 - A partial or mismatched draft requires the reviewed whole-draft cleanup above;
   it is never silently overwritten.

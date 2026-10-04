@@ -14,6 +14,7 @@ on:
       - "deny.toml"
       - "scripts/desktop-release.mjs"
       - "scripts/desktop-release.test.mjs"
+      - "scripts/desktop-windows*"
       - "scripts/validate-dependency-exceptions*"
       - "scripts/validate-supply-chain*"
       - ".github/dependency-exceptions.json"
@@ -41,6 +42,7 @@ on:
       - "deny.toml"
       - "scripts/desktop-release.mjs"
       - "scripts/desktop-release.test.mjs"
+      - "scripts/desktop-windows*"
       - "scripts/validate-dependency-exceptions*"
       - "scripts/validate-supply-chain*"
       - ".github/dependency-exceptions.json"
@@ -73,7 +75,12 @@ jobs:
             runner: macos-15
           - target: x86_64-apple-darwin
             runner: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

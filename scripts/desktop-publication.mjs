@@ -322,33 +322,65 @@ export function releaseNotesText({ context, repository }) {
   return `# ${PRODUCT} ${context.version}\n\n` +
     `Source: [${context.commit}](https://github.com/${repository}/commit/${context.commit})\n\n` +
     `This draft contains separate macOS 15+ archives for Apple silicon and Intel Macs. ` +
+    `These Mac apps are signed with Developer ID, notarized, and stapled. ` +
     `Download the ZIP matching your Mac, verify the checksums and GitHub attestation, then extract it and move ${PRODUCT}.app to Applications.\n\n` +
     "```sh\n" +
     `shasum -a 256 -c ${PRODUCT}-${context.version}-SHA256SUMS\n` +
     `gh attestation verify ${PRODUCT}-${context.version}-aarch64-apple-darwin.zip --repo ${repository}\n` +
     `gh attestation verify ${PRODUCT}-${context.version}-x86_64-apple-darwin.zip --repo ${repository}\n` +
     "```\n\n" +
-    `Third-party notices, including the complete CDLA-Permissive-2.0 agreement for the packaged CA-root data, are included in ${PRODUCT}.app/Contents/Resources/THIRD_PARTY_NOTICES.txt.\n\n` +
-    "Known limitations: macOS 15 or later is required; Windows, Linux, automatic updates, the Mac App Store, and package-manager installation are not included.\n\n" +
+    `Windows 11 x64: download ${PRODUCT}-${context.version}-x86_64-pc-windows-msvc-setup.exe. ` +
+    "This per-user NSIS installer includes the offline WebView2 runtime installer and does not require a separate runtime download. " +
+    "The Windows installer and app are unsigned; Windows may show an unknown-publisher or SmartScreen warning. " +
+    "If SmartScreen offers it, choose **More info → Run anyway** after verifying the downloaded file. Smart App Control or organization policy may block unsigned apps entirely; this distribution does not require disabling those protections.\n\n" +
+    "```powershell\n" +
+    `Get-FileHash .\\${PRODUCT}-${context.version}-x86_64-pc-windows-msvc-setup.exe -Algorithm SHA256\n` +
+    `gh attestation verify ${PRODUCT}-${context.version}-x86_64-pc-windows-msvc-setup.exe --repo ${repository}\n` +
+    "```\n\n" +
+    `Compare the SHA256 value with the Windows installer entry in ${PRODUCT}-${context.version}-SHA256SUMS, then run the installer.\n\n` +
+    `Third-party notices, including the complete CDLA-Permissive-2.0 agreement for the packaged CA-root data, are included in ${PRODUCT}.app/Contents/Resources/THIRD_PARTY_NOTICES.txt on macOS and THIRD_PARTY_NOTICES.txt in the Windows installation directory.\n\n` +
+    "Known limitations: macOS 15 or later or Windows 11 x64 is required; Linux, automatic updates, the Mac App Store, and package-manager installation are not included. Windows station-location lookup requires manual grid entry.\n\n" +
     "This is a private draft verification candidate. Stable publication requires explicit owner promotion after clean-system install, launch, and canonical open/report/export/reopen verification.\n";
 }
 
+export async function authenticateReleaseArtifacts(
+  { complete, directory, repository, tag, commit, target },
+  {
+    authenticate = (filename, policy) => capture("gh", ["attestation", "verify", filename, ...policy], { timeout: 300_000 }),
+    inspect = verifyCompleteArtifacts,
+  } = {},
+) {
+  if (!repository) throw new Error("GITHUB_REPOSITORY is required for attestation verification");
+  if (complete.manifest.tag !== tag || complete.manifest.source_commit !== commit) {
+    throw new Error("downloaded release manifest does not match the verified tag and source commit");
+  }
+  const policy = [
+    "--repo", repository,
+    "--signer-workflow", `${repository}/.github/workflows/desktop-release.yml`,
+    "--source-digest", commit,
+    "--source-ref", `refs/tags/${tag}`,
+    "--deny-self-hosted-runners",
+  ];
+  // Authenticate every downloaded byte before a native inspector can execute
+  // the intentionally unsigned Windows installer.
+  for (const filename of complete.entries) {
+    await authenticate(path.join(directory, filename), policy);
+  }
+  return inspect({ directory, inspectTarget: target });
+}
+
 export async function verifyDraft({ directory, root, tag, target }) {
-  validateTagContext({ root, tag });
+  const context = validateTagContext({ root, tag });
   const existing = releaseView(tag);
   if (!existing?.isDraft) throw new Error("expected an existing draft release");
   fs.rmSync(directory, { recursive: true, force: true });
   fs.mkdirSync(directory, { recursive: true });
   capture("gh", ["release", "download", tag, "--dir", directory], { timeout: 300_000 });
-  const complete = await verifyCompleteArtifacts({ directory, inspectTarget: target });
-  if (complete.manifest.tag !== tag) throw new Error("downloaded release manifest tag mismatch");
-  const repository = process.env.GITHUB_REPOSITORY;
-  if (!repository) throw new Error("GITHUB_REPOSITORY is required for attestation verification");
-  for (const filename of complete.entries) {
-    capture("gh", ["attestation", "verify", path.join(directory, filename), "--repo", repository], {
-      timeout: 300_000,
-    });
-  }
+  const complete = readCompleteArtifactSet(directory);
+  await authenticateReleaseArtifacts({
+    complete, directory, repository: process.env.GITHUB_REPOSITORY,
+    tag, commit: context.commit, target,
+  });
   console.log(`Verified downloaded draft ${tag} for ${target}`);
 }
 

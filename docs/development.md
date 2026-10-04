@@ -32,7 +32,25 @@ The first build downloads dependencies and may take a while. Stop the process
 with Control-C.
 
 CI also exercises portable workspace and desktop-build behavior on Linux and
-Windows, but macOS is the supported environment for interactive desktop work.
+Windows. Native Windows release construction targets Windows 11 x64; clean-system
+interactive validation remains a public-release gate.
+
+## Build On Windows
+
+Install Microsoft C++ Build Tools with **Desktop development with C++** and
+ensure Microsoft Edge WebView2 is available, following
+[Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows).
+Use the MSVC x64 Rust host and Git for Windows' Git Bash for the repository's
+Bash task wrappers. Install Mise, then run `mise install` and `npm ci` from the
+checkout in Git Bash. The same `desktop:build`, `desktop:dev`, and test tasks
+apply; the desktop wrappers hand Tauri to native PowerShell with a canonical
+Windows `Path`.
+
+The Windows release task creates a per-user NSIS installer with the offline
+Evergreen WebView2 installer included. It needs no signing credentials. Details
+and native clean-user verification are in the
+[Development Technical Reference](development-reference.md#desktop-release-artifact-construction)
+and [Desktop Releases](releasing.md).
 
 ## Common Commands
 

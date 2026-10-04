@@ -1,8 +1,16 @@
 import { spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  WINDOWS_TARGET,
+  WINDOWS_RUNNER,
+  buildWindowsInstaller,
+  inspectWindowsInstaller,
+  validateWindowsTauriContract,
+} from "./desktop-windows-release.mjs";
 
 const PRODUCT = "AntennaBench";
 const BUNDLE_IDENTIFIER = "com.rwjblue.antennabench";
@@ -17,6 +25,10 @@ const TARGETS = Object.freeze({
   "x86_64-apple-darwin": Object.freeze({
     architecture: "x86_64",
     runner: "macos-15-intel",
+  }),
+  [WINDOWS_TARGET]: Object.freeze({
+    architecture: "x86_64",
+    runner: WINDOWS_RUNNER,
   }),
 });
 const TARGET_ORDER = Object.freeze(Object.keys(TARGETS));
@@ -52,7 +64,9 @@ export function resolveReleaseIdentityTag(version, tag) {
 export function archiveName(version, target) {
   assertStableVersion(version);
   targetContract(target);
-  return `${PRODUCT}-${version}-${target}.zip`;
+  return target === WINDOWS_TARGET
+    ? `${PRODUCT}-${version}-${target}-setup.exe`
+    : `${PRODUCT}-${version}-${target}.zip`;
 }
 
 export function canonicalJson(value) {
@@ -244,9 +258,14 @@ function sourceEvidence(root) {
 }
 
 function validateHost(target, runnerLabel) {
-  if (process.platform !== "darwin") throw new Error("desktop release artifacts require macOS");
   const contract = targetContract(target);
-  const machine = capture("uname", ["-m"]);
+  const windows = target === WINDOWS_TARGET;
+  const platform = windows ? "win32" : "darwin";
+  if (process.platform !== platform) throw new Error(`${target} release artifacts require native ${windows ? "Windows" : "macOS"}`);
+  const machine = windows ? (process.arch === "x64" ? "x86_64" : process.arch) : capture("uname", ["-m"]);
+  if (windows && (!/^10\.0\.\d+$/.test(os.release()) || Number(os.release().split(".")[2]) < 22000)) {
+    throw new Error("Windows release artifacts require Windows 11 or a compatible native CI runner");
+  }
   if (machine !== contract.architecture) {
     throw new Error(`native host architecture ${machine} does not match ${target}`);
   }
@@ -316,7 +335,23 @@ export function inspectThirdPartyNotices(app) {
   };
 }
 
-function assertPublishableSignature(signature, source) {
+function assertPublishableSignature(signature, source, target, app) {
+  if (target === WINDOWS_TARGET) {
+    for (const evidence of [signature, app?.executable_signature]) {
+      if (
+        evidence?.classification !== "unsigned" ||
+        evidence?.publishable !== true ||
+        evidence?.secure_timestamp !== false ||
+        !Array.isArray(evidence?.authorities) || evidence.authorities.length !== 0
+      ) {
+        throw new Error(`${source} Windows release requires explicit unsigned installer and executable evidence`);
+      }
+    }
+    if (app?.architecture !== "x86_64" || app?.metadata?.minimum_windows !== "11") {
+      throw new Error(`${source} Windows release requires Windows 11 x64 evidence`);
+    }
+    return;
+  }
   const requiredTrust = {
     classification: "developer-id",
     gatekeeper: "accepted",
@@ -406,7 +441,7 @@ function buildInputs(root, target, runnerLabel, policy) {
       image_os: process.env.ImageOS ?? null,
       image_version: process.env.ImageVersion ?? null,
       label: runnerLabel,
-      os_version: capture("sw_vers", ["-productVersion"]),
+      os_version: target === WINDOWS_TARGET ? os.release() : capture("sw_vers", ["-productVersion"]),
     },
     rustc,
     target,
@@ -420,7 +455,14 @@ async function stageApp({ root, app, target, tag, runnerLabel, trustMode, inputs
   if (trustMode === "release" && source.dirty) {
     throw new Error("publishable staging requires a clean source checkout");
   }
-  const appEvidence = inspectApp(app, { target, version, trustMode });
+  if (trustMode === "release" && !tag) {
+    throw new Error("publishable staging requires an explicit release tag");
+  }
+  const windows = target === WINDOWS_TARGET;
+  if (windows) validateWindowsTauriContract(root);
+  const appEvidence = windows
+    ? await inspectWindowsInstaller(app, { target, version, trustMode })
+    : inspectApp(app, { target, version, trustMode });
   const outputRoot = path.join(root, "target", "desktop-release");
   const finalDirectory = path.join(
     outputRoot,
@@ -431,24 +473,32 @@ async function stageApp({ root, app, target, tag, runnerLabel, trustMode, inputs
 
   await withAtomicDirectory(finalDirectory, async (staging) => {
     const archive = path.join(staging, filename);
-    capture("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, archive], {
-      timeout: 300_000,
-    });
-    const extracted = path.join(staging, ".verify-extracted");
-    fs.mkdirSync(extracted);
-    try {
-      capture("ditto", ["-x", "-k", archive, extracted], { timeout: 300_000 });
-      validateStagedEntries(extracted, [`${PRODUCT}.app`]);
-      const extractedEvidence = inspectApp(path.join(extracted, `${PRODUCT}.app`), {
-        target,
-        version,
-        trustMode,
-      });
-      if (canonicalJson(extractedEvidence) !== canonicalJson(appEvidence)) {
-        throw new Error("extracted archive evidence differs from the source application");
+    if (windows) {
+      fs.copyFileSync(app, archive);
+      const copiedEvidence = await inspectWindowsInstaller(archive, { target, version, trustMode });
+      if (canonicalJson(copiedEvidence) !== canonicalJson(appEvidence)) {
+        throw new Error("staged Windows installer evidence differs from the source installer");
       }
-    } finally {
-      fs.rmSync(extracted, { recursive: true, force: true });
+    } else {
+      capture("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, archive], {
+        timeout: 300_000,
+      });
+      const extracted = path.join(staging, ".verify-extracted");
+      fs.mkdirSync(extracted);
+      try {
+        capture("ditto", ["-x", "-k", archive, extracted], { timeout: 300_000 });
+        validateStagedEntries(extracted, [`${PRODUCT}.app`]);
+        const extractedEvidence = inspectApp(path.join(extracted, `${PRODUCT}.app`), {
+          target,
+          version,
+          trustMode,
+        });
+        if (canonicalJson(extractedEvidence) !== canonicalJson(appEvidence)) {
+          throw new Error("extracted archive evidence differs from the source application");
+        }
+      } finally {
+        fs.rmSync(extracted, { recursive: true, force: true });
+      }
     }
 
     const artifact = {
@@ -462,7 +512,7 @@ async function stageApp({ root, app, target, tag, runnerLabel, trustMode, inputs
       build_inputs: inputs,
       contract: {
         bundle_identifier: BUNDLE_IDENTIFIER,
-        minimum_macos: MINIMUM_MACOS,
+        ...(windows ? { minimum_windows: "11", signature_policy: "unsigned" } : { minimum_macos: MINIMUM_MACOS }),
         product: PRODUCT,
         runner: targetContract(target).runner,
         target,
@@ -480,7 +530,7 @@ async function stageApp({ root, app, target, tag, runnerLabel, trustMode, inputs
     if (!manifest.publishable) {
       fs.writeFileSync(
         path.join(staging, "NON_PUBLISHABLE.txt"),
-        "This artifact is unsigned or ad-hoc and must not be attached to a GitHub Release.\n",
+        "This is an internal build probe and must not be attached to a GitHub Release.\n",
       );
       expected.push("NON_PUBLISHABLE.txt");
     }
@@ -528,6 +578,12 @@ async function buildTarget({ root, target, tag, runnerLabel }) {
     timeoutMs: 300_000,
     label: `install Rust target ${target}`,
   });
+  if (target === WINDOWS_TARGET) {
+    const installer = await buildWindowsInstaller({
+      root, target, version, source, tag: releaseIdentityTag, env: process.env,
+    });
+    return stageApp({ root, app: installer, target, tag: releaseIdentityTag, runnerLabel, trustMode: "local", inputs });
+  }
   const app = path.join(
     root,
     "target",
@@ -586,7 +642,7 @@ export function readTargetManifest(directory) {
     throw new Error(`${filename} publishable state disagrees with its signature evidence`);
   }
   if (manifest.publishable) {
-    assertPublishableSignature(signature, filename);
+    assertPublishableSignature(signature, filename, manifest.contract.target, manifest.app);
     if (manifest.source?.dirty !== false || manifest.tag === null) {
       throw new Error(`${filename} publishable input requires a clean tagged source`);
     }
@@ -641,7 +697,7 @@ export function readCompleteArtifactSet(directory) {
     if (fs.statSync(filename).size !== artifact.size || sha256File(filename) !== artifact.sha256) {
       throw new Error(`${artifact.filename} does not match the release manifest`);
     }
-    assertPublishableSignature(artifact.app?.signature, releaseManifestName);
+    assertPublishableSignature(artifact.app?.signature, releaseManifestName, artifact.target, artifact.app);
     if (
       artifact.app?.metadata?.short_version !== manifest.version ||
       artifact.app?.metadata?.build_version !== manifest.version
@@ -668,6 +724,16 @@ export async function verifyCompleteArtifacts({ directory, inspectTarget }) {
     const contract = targetContract(inspectTarget);
     validateHost(inspectTarget, contract.runner);
     const artifact = complete.manifest.artifacts.find((candidate) => candidate.target === inspectTarget);
+    if (inspectTarget === WINDOWS_TARGET) {
+      const evidence = await inspectWindowsInstaller(path.join(directory, artifact.filename), {
+        target: inspectTarget, version: complete.manifest.version, trustMode: "release",
+      });
+      if (canonicalJson(evidence) !== canonicalJson(artifact.app)) {
+        throw new Error(`${artifact.filename} final Windows application evidence differs from its manifest`);
+      }
+      console.log(`Verified complete release set and Windows installation at ${directory}`);
+      return complete;
+    }
     const extracted = fs.mkdtempSync(path.join(path.dirname(directory), ".verify-release-"));
     try {
       capture("ditto", ["-x", "-k", path.join(directory, artifact.filename), extracted], {
@@ -710,7 +776,7 @@ export async function assembleArtifacts({ root, inputs, requirePublishable = fal
   if (commits.size !== 1) throw new Error("target artifact source commits disagree");
   const publishable = records.every((record) => record.manifest.publishable === true);
   if (requirePublishable && !publishable) {
-    throw new Error("release assembly requires signed, notarized, publishable target artifacts");
+    throw new Error("release assembly requires publishable target artifacts under each platform's release policy");
   }
 
   const version = records[0].manifest.version;
@@ -762,7 +828,7 @@ export async function assembleArtifacts({ root, inputs, requirePublishable = fal
     if (!publishable) {
       fs.writeFileSync(
         path.join(staging, "NON_PUBLISHABLE.txt"),
-        "This assembled set contains unsigned or ad-hoc applications and must not be published.\n",
+        "This assembled set contains internal build probes and must not be published.\n",
       );
       expected.push("NON_PUBLISHABLE.txt");
     }
@@ -812,7 +878,9 @@ async function main() {
     if (!["local", "release"].includes(trustMode)) throw new Error(`unsupported trust mode: ${trustMode}`);
     validateHost(target, runnerLabel);
     const inputs = buildInputs(root, target, runnerLabel, {
-      command: "external credentialed publication preflight",
+      command: target === WINDOWS_TARGET
+        ? "verified native Windows build and publication preflight"
+        : "external credentialed publication preflight",
       status: trustMode === "release" ? "passed-by-caller" : "not-required-local-restage",
     });
     await stageApp({

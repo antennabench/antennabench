@@ -4,4 +4,4 @@
 
 set -euo pipefail
 
-node --test scripts/desktop-release.test.mjs
+node --test scripts/desktop-release.test.mjs scripts/desktop-windows-release.test.mjs
