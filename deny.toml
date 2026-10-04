@@ -9,7 +9,7 @@ unsound = "all"
 maximum-db-staleness = "P1D"
 unused-ignored-advisory = "deny"
 ignore = [
-  { id = "RUSTSEC-2024-0429", reason = "Tauri's Linux GTK stack requires glib 0.18; tracked by issue 83 through 2026-08-13" },
+  { id = "RUSTSEC-2024-0429", reason = "Tauri's Linux GTK stack requires glib 0.18; tracked by issue 83 through 2026-11-03" },
 ]
 
 [bans]
