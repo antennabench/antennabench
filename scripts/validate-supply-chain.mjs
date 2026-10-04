@@ -16,6 +16,7 @@ const KNOWN_MANIFESTS = new Set([
 ]);
 
 export function validateUsesText(text, source = "workflow") {
+  text = text.replaceAll("\r\n", "\n");
   const errors = [];
   for (const [index, line] of text.split(/\r?\n/).entries()) {
     const uses = line.match(/^\s*-?\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S.*?))?\s*$/);
@@ -62,6 +63,7 @@ export function validateManifestCoverage(manifests, policy) {
 }
 
 export function validateDependabotText(text, source = ".github/dependabot.yml") {
+  text = text.replaceAll("\r\n", "\n");
   const errors = [];
   for (const ecosystem of ["cargo", "github-actions", "npm"]) {
     const block = text
@@ -93,6 +95,7 @@ export function validateDependabotText(text, source = ".github/dependabot.yml") 
 }
 
 export function validateNpmConfigText(text, source = ".npmrc") {
+  text = text.replaceAll("\r\n", "\n");
   const settings = new Map();
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -161,6 +164,7 @@ export function validateDependencyReviewText(
   text,
   source = ".github/workflows/dependency-review.yml",
 ) {
+  text = text.replaceAll("\r\n", "\n");
   const errors = [];
   const onBlock = text.match(/^on:\s*\n((?: {2}.*(?:\n|$))*)/m)?.[1] ?? "";
   const triggers = [...onBlock.matchAll(/^ {2}([\w-]+):/gm)].map((match) => match[1]);
@@ -176,10 +180,19 @@ export function validateDependencyReviewText(
   return errors;
 }
 
+export function validateMiseWorkflowText(text, source = ".github/workflows/ci.yml") {
+  text = text.replaceAll("\r\n", "\n");
+  const reviewedRelease = /uses:[\t ]*jdx\/mise-action@[0-9a-f]{40}[\t ]+#[\t ]+v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?[\t ]*\n[\t ]+with:[\t ]*\n[\t ]+version:[\t ]*\d+\.\d+\.\d+[\t ]*(?:\n|$)/;
+  return reviewedRelease.test(text)
+    ? []
+    : [`${source}: Mise must use an exact reviewed release`];
+}
+
 export function validateReleaseWorkflowText(
   text,
   source = ".github/workflows/desktop-release.yml",
 ) {
+  text = text.replaceAll("\r\n", "\n");
   const errors = [];
   const required = [
     [/^  push:\s*\n    tags:\s*\n      - "v\*"\s*$/m, "must trigger only from v* tag pushes"],
@@ -234,6 +247,7 @@ export function validateHostedSiteDeployWorkflowText(
   text,
   source = ".github/workflows/hosted-site-deploy.yml",
 ) {
+  text = text.replaceAll("\r\n", "\n");
   const errors = [];
   const required = [
     [/^  push:\s*\n    branches: \[main\]\s*$/m, "must deploy pushes only from main"],
@@ -271,7 +285,7 @@ export function validateRepository(root) {
   const workflowRoot = path.join(root, ".github", "workflows");
   for (const file of fs.readdirSync(workflowRoot).filter((name) => /\.ya?ml$/.test(name)).sort()) {
     const relative = `.github/workflows/${file}`;
-    const text = fs.readFileSync(path.join(workflowRoot, file), "utf8");
+    const text = fs.readFileSync(path.join(workflowRoot, file), "utf8").replaceAll("\r\n", "\n");
     errors.push(...validateUsesText(text, relative));
     if (!/^permissions:\s*\n\s{2}contents:\s*read\s*$/m.test(text)) {
       errors.push(`${relative}: workflow must declare top-level contents: read`);
@@ -337,7 +351,7 @@ export function validateRepository(root) {
     }
   }
 
-  const mise = fs.readFileSync(path.join(root, ".mise", "config.toml"), "utf8");
+  const mise = fs.readFileSync(path.join(root, ".mise", "config.toml"), "utf8").replaceAll("\r\n", "\n");
   for (const pattern of [
     /^node = "\d+\.\d+\.\d+"$/m,
     /^rust = \{ version = "\d+\.\d+\.\d+", components = \["rustfmt", "clippy"\] \}$/m,
@@ -347,13 +361,7 @@ export function validateRepository(root) {
     if (!pattern.test(mise)) errors.push(".mise/config.toml: tools must use exact reviewed pins");
   }
   const ci = fs.readFileSync(path.join(workflowRoot, "ci.yml"), "utf8");
-  if (
-    !/uses:\s*jdx\/mise-action@[0-9a-f]{40}\s+#\s+v\S+\n\s+with:\n\s+version:\s*\d+\.\d+\.\d+/.test(
-      ci,
-    )
-  ) {
-    errors.push(".github/workflows/ci.yml: Mise must use an exact reviewed release");
-  }
+  errors.push(...validateMiseWorkflowText(ci));
   return errors;
 }
 
