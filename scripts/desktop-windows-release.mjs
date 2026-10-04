@@ -58,7 +58,17 @@ export function validateWindowsTauriContract(root) {
   return config;
 }
 
-function capture(command, args, options = {}) {
+function environmentValue(env, name) {
+  return Object.entries(env).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
+}
+
+export function windowsPowerShellPath(env = process.env) {
+  const root = environmentValue(env, "SystemRoot") ?? environmentValue(env, "WINDIR");
+  if (!root) throw new Error("Windows native tools require the SystemRoot environment variable");
+  return path.win32.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+}
+
+function captureRaw(command, args, options = {}) {
   const result = spawnSync(command, args, {
     ...options,
     encoding: "utf8",
@@ -73,8 +83,64 @@ function capture(command, args, options = {}) {
   return (result.stdout ?? "").trim();
 }
 
+function windowsGitBashPath(env) {
+  const roots = [
+    environmentValue(env, "EXEPATH"),
+    environmentValue(env, "ProgramW6432") && path.win32.join(environmentValue(env, "ProgramW6432"), "Git"),
+    environmentValue(env, "ProgramFiles") && path.win32.join(environmentValue(env, "ProgramFiles"), "Git"),
+    environmentValue(env, "LOCALAPPDATA") && path.win32.join(environmentValue(env, "LOCALAPPDATA"), "Programs", "Git"),
+  ].filter(Boolean);
+  for (const root of roots) {
+    const candidate = path.win32.join(root, "bin", "bash.exe");
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  const script = String.raw`
+    $ErrorActionPreference = 'Stop'
+    foreach ($key in @('HKCU:\Software\GitForWindows', 'HKLM:\Software\GitForWindows')) {
+      $root = (Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue).InstallPath
+      if ($root) {
+        $candidate = Join-Path $root 'bin\bash.exe'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { Write-Output $candidate; exit 0 }
+      }
+    }
+    throw 'Git Bash is required to convert the mise/MSYS PATH for native Windows subprocesses.'
+  `;
+  return captureRaw(windowsPowerShellPath(env), [
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64"),
+  ], { env });
+}
+
+const nativePathCache = new Map();
+
+export function nativeWindowsEnvironment(env = process.env) {
+  if (process.platform !== "win32") return env;
+  const paths = Object.entries(env).filter(([key]) => key.toLowerCase() === "path").map(([, value]) => value);
+  let nativePath = paths.find((value) => value.includes(";") && /[a-z]:[\\/]/i.test(value));
+  if (!nativePath) {
+    const key = JSON.stringify(paths);
+    nativePath = nativePathCache.get(key);
+    if (!nativePath) {
+      nativePath = captureRaw(windowsGitBashPath(env), ["-c", '/usr/bin/cygpath -wp "$PATH"'], { env });
+      if (!/[a-z]:[\\/]/i.test(nativePath)) throw new Error("Git Bash did not produce a native Windows PATH");
+      nativePathCache.set(key, nativePath);
+    }
+  }
+  // Windows treats PATH and Path as the same variable. Node otherwise selects
+  // only the first spelling, which can be the unusable MSYS colon-separated one.
+  const result = { ...env };
+  for (const key of Object.keys(result)) {
+    if (key.toLowerCase() === "path") delete result[key];
+  }
+  result.Path = nativePath;
+  return result;
+}
+
+function capture(command, args, options = {}) {
+  return captureRaw(command, args, { ...options, env: nativeWindowsEnvironment(options.env ?? process.env) });
+}
+
 function powershell(script, env, timeout) {
-  return capture("powershell.exe", [
+  return capture(windowsPowerShellPath(env), [
     "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand",
     Buffer.from(`$ErrorActionPreference = 'Stop'\n[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n${script}`, "utf16le").toString("base64"),
   ], { env, timeout });
@@ -82,11 +148,11 @@ function powershell(script, env, timeout) {
 
 async function runBounded(command, args, { cwd, env, timeout, label }) {
   await new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, stdio: "inherit", windowsHide: true });
+    const child = spawn(command, args, { cwd, env: nativeWindowsEnvironment(env), stdio: "inherit", windowsHide: true });
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
-      if (child.pid) spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { timeout: 30_000 });
+      if (child.pid) spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { env: nativeWindowsEnvironment(env), timeout: 30_000 });
     }, timeout);
     child.once("error", (error) => {
       clearTimeout(timer);
@@ -105,7 +171,7 @@ function nativeBuildEnvironment(env) {
   // Git Bash finds mise's installed executables before Windows PATH resolution does.
   // Convert its complete PATH and exact cargo location, matching desktop:build.
   if (env.MSYSTEM) {
-    const output = capture("bash.exe", ["-c", [
+    const output = capture(windowsGitBashPath(env), ["-c", [
       'cygpath -w "$(command -v cargo)"',
       'cygpath -w "$(command -v cargo-tauri)"',
       'cygpath -wp "$PATH"',

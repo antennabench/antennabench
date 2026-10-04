@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { readPeHeader, validateWindowsTauriContract } from "./desktop-windows-release.mjs";
+import { nativeWindowsEnvironment, readPeHeader, validateWindowsTauriContract, windowsPowerShellPath } from "./desktop-windows-release.mjs";
 
 function fixture(t, bytes) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "antennabench-pe-test-"));
@@ -108,12 +108,28 @@ test("native Windows inspection script parses before installing an application",
     [Management.Automation.Language.Parser]::ParseInput($script, [ref] $tokens, [ref] $errors) | Out-Null
     if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
   `;
-  const result = spawnSync("powershell.exe", [
+  const result = spawnSync(windowsPowerShellPath(), [
     "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(parser, "utf16le").toString("base64"),
   ], {
-    env: { ...process.env, ANTENNABENCH_POWERSHELL_TEST_SCRIPT: Buffer.from(script).toString("base64") },
+    env: nativeWindowsEnvironment({ ...process.env, ANTENNABENCH_POWERSHELL_TEST_SCRIPT: Buffer.from(script).toString("base64") }),
     encoding: "utf8", timeout: 30_000, windowsHide: true,
   });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});
+
+test("Windows PowerShell is resolved independently of the inherited MSYS PATH", () => {
+  assert.equal(windowsPowerShellPath({ SYSTEMROOT: "C:\\Windows", PATH: "/usr/bin:/c/tools" }), "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+  assert.equal(windowsPowerShellPath({ windir: "D:\\System Files" }), "D:\\System Files\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+});
+
+test("native Windows subprocesses resolve toolchain and system tools from the mise Git Bash environment", { skip: process.platform !== "win32" }, () => {
+  const env = nativeWindowsEnvironment();
+  assert.equal(Object.keys(env).filter((key) => key.toLowerCase() === "path").length, 1);
+  const commands = [["git", ["--version"]], ["cargo", ["--version"]], ["taskkill.exe", ["/?"]]];
+  for (const [command, args] of commands) {
+    const result = spawnSync(command, args, { env, encoding: "utf8", timeout: 30_000, windowsHide: true });
+    assert.equal(result.error, undefined, `${command} must resolve from the native PATH`);
+    assert.equal(result.status, 0, `${command}: ${result.stdout}\n${result.stderr}`);
+  }
 });

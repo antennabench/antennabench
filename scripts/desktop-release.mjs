@@ -9,6 +9,7 @@ import {
   WINDOWS_RUNNER,
   buildWindowsInstaller,
   inspectWindowsInstaller,
+  nativeWindowsEnvironment,
   validateWindowsTauriContract,
 } from "./desktop-windows-release.mjs";
 
@@ -129,7 +130,7 @@ function sha256File(filename) {
 function capture(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
-    env: options.env,
+    env: nativeWindowsEnvironment(options.env ?? process.env),
     encoding: "utf8",
     timeout: options.timeout ?? 30_000,
   });
@@ -144,7 +145,7 @@ function capture(command, args, options = {}) {
 function captureResult(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
-    env: options.env,
+    env: nativeWindowsEnvironment(options.env ?? process.env),
     encoding: "utf8",
     timeout: options.timeout ?? 30_000,
   });
@@ -159,7 +160,7 @@ async function runBounded(command, args, { cwd, env, timeoutMs, label }) {
     const detached = process.platform !== "win32";
     const child = spawn(command, args, {
       cwd,
-      env,
+      env: nativeWindowsEnvironment(env),
       detached,
       stdio: "inherit",
     });
