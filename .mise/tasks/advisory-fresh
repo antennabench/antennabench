@@ -6,4 +6,4 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo_root"
 
 node scripts/validate-dependency-exceptions.mjs
-cargo deny --locked check advisories
+cargo-deny --locked check advisories

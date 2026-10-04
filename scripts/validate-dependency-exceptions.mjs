@@ -171,7 +171,7 @@ export function validateFreshGate({ advisoryTask, releaseTask, workflow }) {
   if (!/^set -euo pipefail$/m.test(advisoryTask)) {
     errors.push("advisory-fresh: task must fail on every command error");
   }
-  if (!/^cargo deny --locked check advisories$/m.test(advisoryTask)) {
+  if (!/^cargo-deny --locked check advisories$/m.test(advisoryTask)) {
     errors.push("advisory-fresh: task must run a locked advisory check");
   }
   if (/--(?:offline|disable-fetch)|\|\||\|\s*true|;\s*true/.test(advisoryTask)) {

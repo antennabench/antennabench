@@ -7,4 +7,4 @@ cd "$repo_root"
 
 node --test scripts/validate-dependency-exceptions.test.mjs
 node scripts/validate-dependency-exceptions.mjs
-cargo deny --locked check bans licenses sources
+cargo-deny --locked check bans licenses sources

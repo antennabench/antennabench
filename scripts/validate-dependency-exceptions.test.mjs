@@ -132,7 +132,7 @@ test("pins the complete advisory, source, wildcard, duplicate, and license matri
 
 test("fresh advisory and release workflow failures cannot be suppressed", () => {
   const valid = {
-    advisoryTask: "set -euo pipefail\ncargo deny --locked check advisories\n",
+    advisoryTask: "set -euo pipefail\ncargo-deny --locked check advisories\n",
     releaseTask:
       "mise run supply-chain\nmise run dependency-policy\nmise run advisory-fresh\n",
     workflow: `on:
@@ -163,12 +163,15 @@ jobs:
       Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value.replaceAll("\n", newline)])),
     );
     assert.deepEqual(validateInput(valid), []);
-    assert.ok(
-      validateInput({
-        ...valid,
-        advisoryTask: "set -euo pipefail\ncargo deny --locked check advisories || true\n",
-      }).length > 0,
-    );
+    for (const command of [
+      "cargo deny --locked check advisories",
+      "cargo-deny check advisories",
+      "cargo-deny --locked --offline check advisories",
+      "cargo-deny --locked check advisories --disable-fetch",
+      "cargo-deny --locked check advisories || true",
+    ]) {
+      assert.ok(validateInput({ ...valid, advisoryTask: `set -euo pipefail\n${command}\n` }).length > 0, command);
+    }
     assert.ok(validateInput({ ...valid, workflow: valid.workflow.replace("  schedule:\n", "") }).length > 0);
     assert.ok(
       validateInput({ ...valid, releaseTask: valid.releaseTask.replace("mise run advisory-fresh\n", "") })
