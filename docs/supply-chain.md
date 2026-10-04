@@ -98,10 +98,12 @@ rooted at `/`, so one reviewed update covers the complete graph. See
 
 ## Rust Dependency Policy
 
-cargo-deny 0.19.4 is an exact Mise pin. The Cargo backend is configured with
+cargo-deny 0.20.2 is an exact Mise pin. The Cargo backend is configured with
 `locked = true`: source installation uses the release lockfile, while supported
 platforms may use cargo-binstall's checksum-verified upstream release artifact.
-The installed binary must report `cargo-deny 0.19.4`.
+The installed binary must report `cargo-deny 0.20.2`. This version rejects failed
+Git fetches even when a cached advisory database is available, preserving the
+fresh-check requirement.
 
 `deny.toml` evaluates every Cargo-resolved target and enables all features. The
 baseline is:
