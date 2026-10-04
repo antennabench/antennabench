@@ -115,15 +115,27 @@ const nativePathCache = new Map();
 export function nativeWindowsEnvironment(env = process.env) {
   if (process.platform !== "win32") return env;
   const paths = Object.entries(env).filter(([key]) => key.toLowerCase() === "path").map(([, value]) => value);
-  let nativePath = paths.find((value) => value.includes(";") && /[a-z]:[\\/]/i.test(value));
+  const key = JSON.stringify([paths, environmentValue(env, "CARGO_HOME"), environmentValue(env, "RUSTUP_TOOLCHAIN")]);
+  let nativePath = nativePathCache.get(key);
   if (!nativePath) {
-    const key = JSON.stringify(paths);
-    nativePath = nativePathCache.get(key);
-    if (!nativePath) {
-      nativePath = captureRaw(windowsGitBashPath(env), ["-c", '/usr/bin/cygpath -wp "$PATH"'], { env });
-      if (!/[a-z]:[\\/]/i.test(nativePath)) throw new Error("Git Bash did not produce a native Windows PATH");
-      nativePathCache.set(key, nativePath);
+    // Use the same exact cargo directory discovery as desktop:build. A mise
+    // task can expose both stale native PATH and current MSYS PATH spellings;
+    // choosing the native-looking value loses the activated Rust toolchain.
+    const output = captureRaw(windowsGitBashPath(env), ["-c", [
+      "set -e",
+      'cargo="$(command -v cargo)"',
+      '/usr/bin/cygpath -w "$cargo"',
+      '/usr/bin/cygpath -wp "$PATH"',
+    ].join("\n")], { env });
+    const [cargo, convertedPath] = output.split(/\r?\n/);
+    if (!cargo || !convertedPath || !/^[a-z]:[\\/]/i.test(cargo)) {
+      throw new Error("Git Bash did not resolve the native cargo executable and Windows PATH");
     }
+    if (!fs.existsSync(cargo) && !fs.existsSync(`${cargo}.exe`)) {
+      throw new Error(`Git Bash resolved a missing native cargo executable: ${cargo}`);
+    }
+    nativePath = `${path.win32.dirname(cargo)};${convertedPath}`;
+    nativePathCache.set(key, nativePath);
   }
   // Windows treats PATH and Path as the same variable. Node's command lookup
   // specifically reads options.env.PATH, so retain only that uppercase spelling.

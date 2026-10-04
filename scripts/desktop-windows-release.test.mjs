@@ -130,7 +130,8 @@ test("native Windows subprocesses resolve toolchain and system tools from the mi
   const commands = [["git", ["--version"]], ["cargo", ["--version"]], ["taskkill.exe", ["/?"]]];
   for (const [command, args] of commands) {
     const result = spawnSync(command, args, { env, encoding: "utf8", timeout: 30_000, windowsHide: true });
-    assert.equal(result.error, undefined, `${command} must resolve from the native PATH`);
+    const candidates = env.PATH.split(";").map((directory) => path.join(directory, command.endsWith(".exe") ? command : `${command}.exe`)).filter((filename) => fs.existsSync(filename));
+    assert.equal(result.error, undefined, `${command} must resolve from the native PATH; executable candidates=${candidates.join(", ")}; PATH=${env.PATH}`);
     assert.equal(result.status, 0, `${command}: ${result.stdout}\n${result.stderr}`);
   }
 });
