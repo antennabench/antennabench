@@ -132,7 +132,7 @@ test("pins the complete advisory, source, wildcard, duplicate, and license matri
 
 test("fresh advisory and release workflow failures cannot be suppressed", () => {
   const valid = {
-    advisoryTask: "set -euo pipefail\ncargo-deny --locked check advisories\n",
+    advisoryTask: "set -euo pipefail\nnode scripts/run-cargo-deny.mjs --locked check advisories\n",
     releaseTask:
       "mise run supply-chain\nmise run dependency-policy\nmise run advisory-fresh\n",
     workflow: `on:
@@ -165,10 +165,11 @@ jobs:
     assert.deepEqual(validateInput(valid), []);
     for (const command of [
       "cargo deny --locked check advisories",
-      "cargo-deny check advisories",
-      "cargo-deny --locked --offline check advisories",
-      "cargo-deny --locked check advisories --disable-fetch",
-      "cargo-deny --locked check advisories || true",
+      "cargo-deny --locked check advisories",
+      "node scripts/run-cargo-deny.mjs check advisories",
+      "node scripts/run-cargo-deny.mjs --locked --offline check advisories",
+      "node scripts/run-cargo-deny.mjs --locked check advisories --disable-fetch",
+      "node scripts/run-cargo-deny.mjs --locked check advisories || true",
     ]) {
       assert.ok(validateInput({ ...valid, advisoryTask: `set -euo pipefail\n${command}\n` }).length > 0, command);
     }

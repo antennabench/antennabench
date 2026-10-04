@@ -46,6 +46,8 @@ jobs:
             ".github/workflows/rust-supply-chain.yml" \
             ".mise/tasks/advisory-fresh" \
             ".mise/tasks/dependency-policy" \
+            ":(glob)scripts/run-cargo-deny*" \
+            "scripts/desktop-windows-release.mjs" \
             ".mise/tasks/release-preflight"
           diff_status=$?
           set -e

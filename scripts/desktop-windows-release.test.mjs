@@ -127,6 +127,10 @@ test("native Windows subprocesses resolve toolchain and system tools from the mi
   const env = nativeWindowsEnvironment();
   assert.equal(Object.keys(env).filter((key) => key.toLowerCase() === "path").length, 1);
   assert.ok(Object.hasOwn(env, "PATH"), "Node command lookup requires options.env.PATH");
+  assert.equal(Object.keys(env).filter((key) => key.toLowerCase() === "cargo").length, 1);
+  assert.match(env.CARGO, /^[a-z]:[\\/]/i, "Cargo metadata requires a native absolute CARGO override");
+  assert.ok(fs.existsSync(env.CARGO), "CARGO must select an existing native executable");
+  assert.equal(nativeWindowsEnvironment({ ...process.env, CARGO: "/missing/msys/cargo" }).CARGO, env.CARGO);
   const commands = [
     ["git", ["--version"]],
     ["cargo", ["--version"]],

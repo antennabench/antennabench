@@ -16,6 +16,7 @@ on:
       - "scripts/desktop-release.mjs"
       - "scripts/desktop-release.test.mjs"
       - "scripts/desktop-windows*"
+      - "scripts/run-cargo-deny*"
       - "scripts/validate-dependency-exceptions*"
       - "scripts/validate-supply-chain*"
       - ".github/dependency-exceptions.json"
@@ -45,6 +46,7 @@ on:
       - "scripts/desktop-release.mjs"
       - "scripts/desktop-release.test.mjs"
       - "scripts/desktop-windows*"
+      - "scripts/run-cargo-deny*"
       - "scripts/validate-dependency-exceptions*"
       - "scripts/validate-supply-chain*"
       - ".github/dependency-exceptions.json"
@@ -103,6 +105,7 @@ jobs:
       - name: Run portable and unattended desktop verification
         run: |
           mise run desktop:release-test
+          mise run release-preflight
           mise run test
           mise run desktop:frontend-test
           mise run desktop:e2e

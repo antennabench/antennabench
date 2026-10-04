@@ -110,14 +110,14 @@ function windowsGitBashPath(env) {
   ], { env });
 }
 
-const nativePathCache = new Map();
+const nativeToolchainCache = new Map();
 
 export function nativeWindowsEnvironment(env = process.env) {
   if (process.platform !== "win32") return env;
   const paths = Object.entries(env).filter(([key]) => key.toLowerCase() === "path").map(([, value]) => value);
   const key = JSON.stringify([paths, environmentValue(env, "CARGO_HOME"), environmentValue(env, "RUSTUP_TOOLCHAIN")]);
-  let nativePath = nativePathCache.get(key);
-  if (!nativePath) {
+  let native = nativeToolchainCache.get(key);
+  if (!native) {
     // Use the same exact cargo directory discovery as desktop:build. A mise
     // task can expose both stale native PATH and current MSYS PATH spellings;
     // choosing the native-looking value loses the activated Rust toolchain.
@@ -131,19 +131,23 @@ export function nativeWindowsEnvironment(env = process.env) {
     if (!cargo || !convertedPath || !/^[a-z]:[\\/]/i.test(cargo)) {
       throw new Error("Git Bash did not resolve the native cargo executable and Windows PATH");
     }
-    if (!fs.existsSync(cargo) && !fs.existsSync(`${cargo}.exe`)) {
+    const cargoExecutable = fs.existsSync(cargo) ? cargo : `${cargo}.exe`;
+    if (!fs.existsSync(cargoExecutable)) {
       throw new Error(`Git Bash resolved a missing native cargo executable: ${cargo}`);
     }
-    nativePath = `${path.win32.dirname(cargo)};${convertedPath}`;
-    nativePathCache.set(key, nativePath);
+    native = { cargo: cargoExecutable, path: `${path.win32.dirname(cargoExecutable)};${convertedPath}` };
+    nativeToolchainCache.set(key, native);
   }
   // Windows treats PATH and Path as the same variable. Node's command lookup
   // specifically reads options.env.PATH, so retain only that uppercase spelling.
   const result = { ...env };
   for (const key of Object.keys(result)) {
-    if (key.toLowerCase() === "path") delete result[key];
+    if (["path", "cargo"].includes(key.toLowerCase())) delete result[key];
   }
-  result.PATH = nativePath;
+  result.PATH = native.path;
+  // cargo_metadata honors CARGO before PATH, so replace an inherited MSYS
+  // override with the same exact native executable selected above.
+  result.CARGO = native.cargo;
   return result;
 }
 
