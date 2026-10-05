@@ -22,11 +22,13 @@ AntennaBench has a complete local, manual workflow for repeatable
 - export standalone HTML or a verified copy of the complete
   [session bundle](glossary.md#session-bundle).
 
-The repository can also build verified macOS release inputs for Apple silicon and
-Intel and an unsigned Windows 11 x64 NSIS installer. There is not yet a public
-download; native clean-system proof and the release/product promotion gates
-remain required. `antennabench.com` is the
-public information site and canonical sample; it does not offer accounts,
+The repository can also build verified macOS archives for Apple silicon and
+Intel and an unsigned Windows 11 x64 NSIS installer. The owner has authorized
+an unsigned, unnotarized WSJT-X companion early preview after the tagged native
+and downloaded-artifact checks pass. Clean-system interactive and external-beta
+observations remain deferred work, not completed release evidence.
+`antennabench.com` is the public information site, desktop availability page,
+and canonical sample; it does not offer accounts,
 uploads, or report publishing. The separate hosted-sharing foundation remains a
 non-public, admission-disabled prototype and is not part of the current product.
 
@@ -37,17 +39,18 @@ product experience.
 
 ## Current Sequence
 
-### 1. Prove Private Release Publishing
+### 1. Prove Release Publishing
 
 Create the AntennaBench GitHub organization, transfer the repository, establish
 the shared organization foundation, and complete the post-transfer security
-audit. Then use the current code to produce one private draft candidate with
-signed, notarized, stapled macOS archives and the unsigned Windows installer,
-and independently verify its downloaded bytes,
-installation, launch, report, and export behavior.
+audit. Then use the current code to produce a private draft with unsigned or
+ad-hoc macOS archives and the unsigned Windows installer, and independently
+verify its downloaded bytes and native package evidence.
 
-This phase proves the release machinery. It does not publish or promote the
-current companion workflow.
+This phase proves release machinery and permits the owner-authorized unsigned
+companion preview described in [Decision 0031](decisions/0031-ship-unsigned-macos-early-previews.md).
+It does not complete native-WSPR or external-beta work below. Clean-system
+interactive results are recorded only when actually performed.
 
 Tracking: [#290](https://github.com/antennabench/antennabench/issues/290),
 [#60](https://github.com/antennabench/antennabench/issues/60), and
@@ -91,8 +94,9 @@ Tracking: [#291](https://github.com/antennabench/antennabench/issues/291),
 ### 4. Validate The Native Workflow
 
 Maintainer sessions may continue against the workable companion workflow while
-native WSPR is built. External beta begins only after a signed native candidate
-can be installed and used without WSJT-X or a development checkout.
+native WSPR is built. External beta begins only after a native candidate with a
+reviewed distribution policy can be installed and used without WSJT-X or a
+development checkout.
 
 The beta covers native audio, manual tune/VOX, local and optional public
 evidence, interruption/recovery, Summary and Full evidence interpretation, and
@@ -103,12 +107,13 @@ Tracking: [#75](https://github.com/antennabench/antennabench/issues/75),
 [#78](https://github.com/antennabench/antennabench/issues/78), and
 [#79](https://github.com/antennabench/antennabench/issues/79).
 
-### 5. Publish And Promote
+### 5. Publish And Promote Native WSPR
 
-Only after the native workflow, Summary, signed-release, documentation, and
-external-beta gates pass will AntennaBench publish and promote a macOS preview.
-That release makes the independently verified download the website's primary
-call to action.
+Only after the native workflow, Summary, release-policy, documentation, and
+external-beta gates pass will AntennaBench publish and promote a native-WSPR
+macOS preview. Those gates remain distinct from the owner-authorized companion
+preview above. The later release updates the website to offer the independently
+verified native workflow.
 
 Tracking: [#295](https://github.com/antennabench/antennabench/issues/295).
 
@@ -138,6 +143,6 @@ evidence to justify it.
 Rich propagation capture, built-in non-WSPR keying, and the previously designed
 hosted account/publishing service are not planned. Their prior issues and ADRs
 remain research history. Hosted sharing will be reconsidered only after the
-native signed external beta identifies a repeated problem that local standalone
+native external beta identifies a repeated problem that local standalone
 HTML cannot solve; any later experiment will remain optional and will not
 replace the local session bundle.

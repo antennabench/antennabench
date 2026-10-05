@@ -52,14 +52,16 @@ review remain the complete defaults.
 ## Project Status
 
 > [!IMPORTANT]
-> AntennaBench is an early preview under active development. There is not yet a
-> end-user download. The current desktop app is run from source on macOS
-> 15 or later.
+> AntennaBench is an early preview under active development. It uses WSJT-X
+> for WSPR transmission and decoding. See [desktop availability and installation
+> guidance](https://antennabench.com/download/) for published downloads.
 
 Release infrastructure targets macOS 15 or later on Apple silicon and Intel,
-plus Windows 11 x64. Windows will use an unsigned per-user installer with the
-WebView2 Runtime included; clean-system installation and interactive validation
-remain required before public promotion. See the
+plus Windows 11 x64. Current Mac archives are not Developer ID signed or
+notarized; Windows uses an unsigned per-user installer with the WebView2 Runtime
+included. Both platforms may show security warnings. Automated release checks
+are required; clean-system interactive and external-beta validation remains
+deferred preview work. See the
 [release runbook](docs/releasing.md) for the artifact and trust contract.
 
 The local workflow can create and reopen sessions, conduct manual WSPR

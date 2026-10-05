@@ -194,10 +194,14 @@ export function validateReleaseWorkflowText(
 ) {
   text = text.replaceAll("\r\n", "\n");
   const errors = [];
+  const jobBlock = (name) => text.match(new RegExp(`^  ${name}:\\s*\\n([\\s\\S]*?)(?=^  [a-z][a-z0-9_-]*:|(?![\\s\\S]))`, "m"))?.[1] ?? "";
+  const macos = jobBlock("macos");
+  const assemble = jobBlock("assemble");
+  const attest = jobBlock("attest");
+  const publish = jobBlock("publish");
   const required = [
     [/^  push:\s*\n    tags:\s*\n      - "v\*"\s*$/m, "must trigger only from v* tag pushes"],
-    [/^  sign:\s*$/m, "must have an isolated signing job"],
-    [/^    environment: desktop-release\s*$/m, "signing must use the desktop-release environment"],
+    [/^  macos:\s*$/m, "must have an isolated unsigned Mac staging job"],
     [/mise run desktop:release-assemble[\s\S]*?--require-publishable/, "must require publishable target manifests"],
     [/uses: actions\/attest@[0-9a-f]{40}\s+#\s+v\S+/, "must generate immutable GitHub attestations"],
     [/^      id-token: write\s*$/m, "attestation job must have OIDC write permission"],
@@ -209,36 +213,35 @@ export function validateReleaseWorkflowText(
   for (const [pattern, message] of required) {
     if (!pattern.test(text)) errors.push(`${source}: ${message}`);
   }
-  for (const forbidden of ["pull_request:", "workflow_dispatch:", "--clobber", "gh release publish", "--prerelease"]) {
+  for (const forbidden of ["pull_request:", "workflow_dispatch:", "--clobber", "gh release publish", "--prerelease", "publication-sign", "APPLE_"]) {
     if (text.includes(forbidden)) errors.push(`${source}: forbidden release path token ${forbidden}`);
   }
-  if ((text.match(/^    environment: desktop-release\s*$/gm) ?? []).length !== 1) {
-    errors.push(`${source}: only the signing job may receive the protected environment`);
+  if (/^\s+environment:/m.test(text) || /secrets\./.test(text)) {
+    errors.push(`${source}: unsigned releases must not request protected environments or secrets`);
+  }
+  if (!/^    needs: build\s*$/m.test(macos) || !macos.includes("publication-prepare") ||
+      !macos.includes("release-stage") || !macos.includes("--trust-mode unsigned-macos") ||
+      macos.includes("--trust-mode release")) {
+    errors.push(`${source}: Mac staging must verify native inputs and select the explicit unsigned-macos policy`);
+  }
+  if (!/^    needs: \[macos, windows\]\s*$/m.test(assemble)) {
+    errors.push(`${source}: assembly must wait for both Mac and Windows release verification`);
   }
   if ((text.match(/^      contents: write\s*$/gm) ?? []).length !== 1) {
     errors.push(`${source}: contents write must be limited to one draft-publication job`);
   }
+  if (!/^      contents: write\s*$/m.test(publish)) {
+    errors.push(`${source}: only the draft-publication job may mutate releases`);
+  }
+  if (!publish.includes("--release-dir target/desktop-release/publishable/complete")) {
+    errors.push(`${source}: release notes must derive signature policy from the verified complete set`);
+  }
   if ((text.match(/^      id-token: write\s*$/gm) ?? []).length !== 1) {
     errors.push(`${source}: OIDC write must be limited to one attestation job`);
   }
-  const secretNames = [...text.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((match) => match[1]);
-  const expectedSecrets = [
-    "APPLE_API_ISSUER",
-    "APPLE_API_KEY",
-    "APPLE_API_PRIVATE_KEY",
-    "APPLE_CERTIFICATE",
-    "APPLE_CERTIFICATE_PASSWORD",
-  ];
-  if (JSON.stringify([...new Set(secretNames)].sort()) !== JSON.stringify(expectedSecrets)) {
-    errors.push(`${source}: protected signing secret inventory is not exact`);
-  }
-  const signStart = text.search(/^  sign:\s*$/m);
-  const nextJob = signStart === -1
-    ? null
-    : [...text.matchAll(/^  [a-z][a-z0-9_-]*:\s*$/gm)].find((match) => match.index > signStart);
-  const signEnd = nextJob?.index ?? -1;
-  if (signStart === -1 || signEnd <= signStart || /secrets\./.test(text.slice(0, signStart) + text.slice(signEnd))) {
-    errors.push(`${source}: Apple secrets must be referenced only inside the signing job`);
+  if ((text.match(/^      attestations: write\s*$/gm) ?? []).length !== 1 ||
+      !/^      id-token: write\s*$/m.test(attest) || !/^      attestations: write\s*$/m.test(attest)) {
+    errors.push(`${source}: provenance permissions must be limited to the attestation job`);
   }
   return errors;
 }

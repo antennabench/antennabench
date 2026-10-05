@@ -32,8 +32,9 @@ The first build downloads dependencies and may take a while. Stop the process
 with Control-C.
 
 CI also exercises portable workspace and desktop-build behavior on Linux and
-Windows. Native Windows release construction targets Windows 11 x64; clean-system
-interactive validation remains a public-release gate.
+Windows. Native Windows release construction targets Windows 11 x64;
+clean-system interactive validation remains deferred early-preview work. See
+the [release runbook](releasing.md) for automated evidence and remaining checks.
 
 ## Build On Windows
 

@@ -3,6 +3,8 @@ export const latestReleaseApi = "https://api.github.com/repos/antennabench/anten
 export const releaseEnvironmentKey = "ANTENNABENCH_PUBLISHED_DESKTOP_RELEASE";
 
 export function desktopReleaseFiles(tag) {
+  // GitHub release metadata establishes availability, not Apple signing state.
+  // Keep Mac formats generic; release notes and current install guidance own that policy.
   if (typeof tag !== "string" || !/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) {
     throw new Error("Website downloads require a stable vMAJOR.MINOR.PATCH release tag");
   }
@@ -21,14 +23,14 @@ export function desktopReleaseFiles(tag) {
       target: "aarch64-apple-darwin",
       title: "Mac · Apple silicon",
       requirements: "macOS 15 or later · M1 or newer",
-      format: "Signed and notarized app · .zip",
+      format: "macOS app · .zip",
       filename: `${prefix}-aarch64-apple-darwin.zip`,
     },
     {
       target: "x86_64-apple-darwin",
       title: "Mac · Intel",
       requirements: "macOS 15 or later · Intel processor",
-      format: "Signed and notarized app · .zip",
+      format: "macOS app · .zip",
       filename: `${prefix}-x86_64-apple-darwin.zip`,
     },
   ].map((download) => ({ ...download, url: `${base}/${download.filename}` }));

@@ -59,6 +59,8 @@ historical references, not tutorials or work trackers; start with the
   Path](0029-make-native-wspr-the-primary-product-path.md)
 - [0030: Ship Unsigned Windows x64
   Installers](0030-ship-unsigned-windows-x64-installers.md)
+- [0031: Ship Unsigned macOS Early
+  Previews](0031-ship-unsigned-macos-early-previews.md)
 
 Two records use number 0014 because they were accepted concurrently. Their
 filenames and links remain unchanged to preserve history; future decisions

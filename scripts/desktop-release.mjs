@@ -309,40 +309,117 @@ function plistValue(plist, key) {
   return capture("plutil", ["-extract", key, "raw", "-o", "-", plist]);
 }
 
-function inspectSignature(app, trustMode) {
-  const details = captureResult("codesign", ["-d", "--verbose=4", app]);
-  let classification = "unsigned";
-  if (details.ok && /Signature=adhoc/.test(details.output)) classification = "ad-hoc";
-  else if (details.ok && /Authority=Developer ID Application:/.test(details.output)) {
+export function inspectMacSignature(app, trustMode, {
+  readSignature = captureResult,
+  verify = capture,
+} = {}) {
+  signaturePolicyForTrustMode("aarch64-apple-darwin", trustMode);
+  const details = readSignature("codesign", ["-d", "--verbose=4", app]);
+  const output = details.output ?? `${details.stdout ?? ""}${details.stderr ?? ""}`.trim();
+  let classification;
+  if (!details.ok) {
+    if (details.error || details.status !== 1 || !/code object is not signed at all/.test(output)) {
+      throw new Error(`could not determine macOS signature state: ${details.error ?? (output || `exit ${details.status}`)}`);
+    }
+    classification = "unsigned";
+  } else if (/Signature=adhoc/.test(output)) classification = "ad-hoc";
+  else if (/Authority=Developer ID Application:/.test(output)) {
     classification = "developer-id";
-  } else if (details.ok) classification = "other";
+  } else classification = "other";
+  const authorities = [...output.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1].trim());
+  let codeSignatureVerified = false;
 
   if (trustMode === "release") {
     if (classification !== "developer-id") {
       throw new Error(`release mode requires Developer ID signing; found ${classification}`);
     }
-    if (!/flags=.*runtime/.test(details.output)) {
+    if (!/flags=.*runtime/.test(output)) {
       throw new Error("release signature is missing hardened runtime");
     }
-    if (!/^Timestamp=/m.test(details.output) || /^Timestamp=none$/m.test(details.output)) {
+    if (!/^Timestamp=/m.test(output) || /^Timestamp=none\r?$/m.test(output)) {
       throw new Error("release signature is missing a secure timestamp");
     }
-    capture("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
-    capture("xcrun", ["stapler", "validate", app], { timeout: 120_000 });
-    capture("spctl", ["--assess", "--type", "execute", "--verbose=4", app], {
+    verify("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
+    codeSignatureVerified = true;
+    verify("xcrun", ["stapler", "validate", app], { timeout: 120_000 });
+    verify("spctl", ["--assess", "--type", "execute", "--verbose=4", app], {
       timeout: 120_000,
     });
+  } else if (trustMode === "unsigned-macos") {
+    if (!["unsigned", "ad-hoc"].includes(classification) || authorities.length !== 0) {
+      throw new Error(`unsigned-macos mode requires an unsigned or ad-hoc Mac app without signing authorities; found ${classification}`);
+    }
+    const timestamps = [...output.matchAll(/^Timestamp=(.*)$/gm)].map((match) => match[1].trim());
+    if (timestamps.some((timestamp) => timestamp !== "none")) {
+      throw new Error("unsigned-macos mode forbids a secure timestamp");
+    }
+    if (classification === "ad-hoc") {
+      verify("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
+      codeSignatureVerified = true;
+    }
   }
 
   return {
-    authorities: [...details.output.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1]),
+    authorities,
     classification,
-    gatekeeper: trustMode === "release" ? "accepted" : "not-checked-non-publishable",
-    hardened_runtime: trustMode === "release",
-    notarization: trustMode === "release" ? "stapled-and-validated" : "not-checked-non-publishable",
-    publishable: trustMode === "release",
+    code_signature_verified: codeSignatureVerified,
+    gatekeeper: trustMode === "release" ? "accepted" : trustMode === "unsigned-macos" ? "not-claimed-unsigned-macos" : "not-checked-non-publishable",
+    hardened_runtime: /flags=.*runtime/.test(output),
+    notarization: trustMode === "release" ? "stapled-and-validated" : trustMode === "unsigned-macos" ? "not-claimed-unsigned-macos" : "not-checked-non-publishable",
+    publishable: trustMode !== "local",
     secure_timestamp: trustMode === "release",
   };
+}
+
+export function sealMacAppAdHoc(app, { run = capture } = {}) {
+  for (const relative of ["Frameworks", "PlugIns", "XPCServices", "Helpers"]) {
+    const directory = path.join(app, "Contents", relative);
+    if (fs.existsSync(directory) && fs.readdirSync(directory).length > 0) {
+      throw new Error(`unexpected nested code at Contents/${relative}; explicit inside-out integrity sealing is required`);
+    }
+  }
+  run("codesign", ["--force", "--sign", "-", "--timestamp=none", app], { timeout: 300_000 });
+  run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
+}
+
+export function signaturePolicyForTrustMode(target, trustMode) {
+  targetContract(target);
+  if (!["local", "release", "unsigned-macos"].includes(trustMode)) {
+    throw new Error(`unsupported trust mode: ${trustMode}`);
+  }
+  if (target === WINDOWS_TARGET) {
+    if (trustMode === "unsigned-macos") throw new Error("unsigned-macos trust mode requires a Mac target");
+    return "unsigned";
+  }
+  return trustMode === "local" ? "local-non-publishable" : trustMode === "release" ? "developer-id-notarized" : "unsigned-macos";
+}
+
+export function trustModeForArtifact(artifact) {
+  targetContract(artifact?.target);
+  const policy = artifact.signature_policy;
+  if (artifact.target === WINDOWS_TARGET) {
+    if (policy !== "unsigned") throw new Error("Windows release requires declared unsigned signature policy");
+  } else if (!["developer-id-notarized", "unsigned-macos"].includes(policy)) {
+    throw new Error("Mac release requires declared developer-id-notarized or unsigned-macos signature policy");
+  }
+  assertPublishableSignature(artifact.app?.signature, "release artifact", artifact.target, artifact.app, policy);
+  assertMacAppEvidence(artifact.app, artifact.target, "release artifact");
+  return policy === "unsigned-macos" ? "unsigned-macos" : "release";
+}
+
+export function trustModeForManifest(manifest) {
+  const target = manifest.contract?.target;
+  targetContract(target);
+  if (manifest.publishable === true) {
+    return trustModeForArtifact({ target, signature_policy: manifest.contract.signature_policy, app: manifest.app });
+  }
+  if (manifest.publishable !== false || manifest.app?.signature?.publishable !== false) {
+    throw new Error("artifact manifest requires an explicit publishable state matching signature evidence");
+  }
+  if (manifest.contract.signature_policy !== signaturePolicyForTrustMode(target, "local")) {
+    throw new Error("non-publishable artifact requires its explicit local signature policy");
+  }
+  return "local";
 }
 
 export function inspectThirdPartyNotices(app) {
@@ -360,7 +437,7 @@ export function inspectThirdPartyNotices(app) {
   };
 }
 
-function assertPublishableSignature(signature, source, target, app) {
+function assertPublishableSignature(signature, source, target, app, signaturePolicy) {
   if (target === WINDOWS_TARGET) {
     for (const evidence of [signature, app?.executable_signature]) {
       if (
@@ -377,8 +454,31 @@ function assertPublishableSignature(signature, source, target, app) {
     }
     return;
   }
+  if (signaturePolicy === "unsigned-macos") {
+    const requiredTrust = {
+      gatekeeper: "not-claimed-unsigned-macos",
+      notarization: "not-claimed-unsigned-macos",
+      publishable: true,
+      secure_timestamp: false,
+    };
+    for (const [field, expected] of Object.entries(requiredTrust)) {
+      if (signature?.[field] !== expected) {
+        throw new Error(`${source} unsigned Mac signature evidence has invalid ${field}`);
+      }
+    }
+    if (
+      !["unsigned", "ad-hoc"].includes(signature.classification) ||
+      !Array.isArray(signature.authorities) || signature.authorities.length !== 0 ||
+      signature.code_signature_verified !== (signature.classification === "ad-hoc") ||
+      typeof signature.hardened_runtime !== "boolean"
+    ) {
+      throw new Error(`${source} unsigned Mac release requires explicit unsigned or verified ad-hoc evidence without signing authorities`);
+    }
+    return;
+  }
   const requiredTrust = {
     classification: "developer-id",
+    code_signature_verified: true,
     gatekeeper: "accepted",
     hardened_runtime: true,
     notarization: "stapled-and-validated",
@@ -392,6 +492,37 @@ function assertPublishableSignature(signature, source, target, app) {
   }
   if (!Array.isArray(signature.authorities) || !signature.authorities[0]?.startsWith("Developer ID Application:")) {
     throw new Error(`${source} publishable signature evidence is missing its Developer ID authority`);
+  }
+}
+
+function assertMacAppEvidence(app, target, source) {
+  if (target === WINDOWS_TARGET) return;
+  const expected = {
+    bundle_identifier: BUNDLE_IDENTIFIER,
+    minimum_macos: MINIMUM_MACOS,
+    product_name: PRODUCT,
+  };
+  if (app?.architecture !== targetContract(target).architecture) {
+    throw new Error(`${source} Mac architecture evidence does not match its target`);
+  }
+  for (const [field, value] of Object.entries(expected)) {
+    if (app?.metadata?.[field] !== value) throw new Error(`${source} Mac metadata has invalid ${field}`);
+  }
+  const executable = app.metadata.executable;
+  if (typeof executable !== "string" || executable.length === 0 || /[\\/]/.test(executable) || executable === "." || executable === "..") {
+    throw new Error(`${source} Mac executable metadata must be a plain filename`);
+  }
+  if (app.third_party_notices?.filename !== THIRD_PARTY_NOTICES || app.third_party_notices?.sha256 !== THIRD_PARTY_NOTICES_SHA256) {
+    throw new Error(`${source} Mac release is missing the exact reviewed notice evidence`);
+  }
+}
+
+export function assertPublishableSource({ source, tag, version }) {
+  if (source?.dirty !== false || !/^[0-9a-f]{40}$/.test(source?.commit ?? "")) {
+    throw new Error("publishable input requires a clean source commit");
+  }
+  if (tag !== `v${assertStableVersion(version)}`) {
+    throw new Error("publishable input requires an explicit matching release tag");
   }
 }
 
@@ -420,6 +551,9 @@ function inspectApp(app, { target, version, trustMode }) {
     }
   }
 
+  if (!metadata.executable || /[\\/]/.test(metadata.executable) || [".", ".."].includes(metadata.executable)) {
+    throw new Error("embedded executable metadata must be a plain filename");
+  }
   const executable = path.join(app, "Contents", "MacOS", metadata.executable);
   if (!fs.existsSync(executable)) throw new Error(`application executable is missing: ${executable}`);
   const architectures = capture("lipo", ["-archs", executable]).split(/\s+/).filter(Boolean);
@@ -441,7 +575,7 @@ function inspectApp(app, { target, version, trustMode }) {
     architecture: contract.architecture,
     metadata,
     third_party_notices: inspectThirdPartyNotices(app),
-    signature: inspectSignature(app, trustMode),
+    signature: inspectMacSignature(app, trustMode),
   };
 }
 
@@ -477,11 +611,9 @@ async function stageApp({ root, app, target, tag, runnerLabel, trustMode, inputs
   const version = workspaceVersion(root);
   assertVersionTag(version, tag);
   const source = sourceEvidence(root);
-  if (trustMode === "release" && source.dirty) {
-    throw new Error("publishable staging requires a clean source checkout");
-  }
-  if (trustMode === "release" && !tag) {
-    throw new Error("publishable staging requires an explicit release tag");
+  const signaturePolicy = signaturePolicyForTrustMode(target, trustMode);
+  if (trustMode !== "local") {
+    assertPublishableSource({ source, tag, version });
   }
   const windows = target === WINDOWS_TARGET;
   if (windows) validateWindowsTauriContract(root);
@@ -537,7 +669,8 @@ async function stageApp({ root, app, target, tag, runnerLabel, trustMode, inputs
       build_inputs: inputs,
       contract: {
         bundle_identifier: BUNDLE_IDENTIFIER,
-        ...(windows ? { minimum_windows: "11", signature_policy: "unsigned" } : { minimum_macos: MINIMUM_MACOS }),
+        ...(windows ? { minimum_windows: "11" } : { minimum_macos: MINIMUM_MACOS }),
+        signature_policy: signaturePolicy,
         product: PRODUCT,
         runner: targetContract(target).runner,
         target,
@@ -639,6 +772,7 @@ async function buildTarget({ root, target, tag, runnerLabel }) {
     },
   );
   if (!fs.existsSync(app)) throw new Error(`Tauri did not produce ${app}`);
+  sealMacAppAdHoc(app);
   return stageApp({
     root,
     app,
@@ -666,10 +800,11 @@ export function readTargetManifest(directory) {
   if (manifest.publishable !== signature?.publishable) {
     throw new Error(`${filename} publishable state disagrees with its signature evidence`);
   }
+  trustModeForManifest(manifest);
   if (manifest.publishable) {
-    assertPublishableSignature(signature, filename, manifest.contract.target, manifest.app);
-    if (manifest.source?.dirty !== false || manifest.tag === null) {
-      throw new Error(`${filename} publishable input requires a clean tagged source`);
+    assertPublishableSource(manifest);
+    if (manifest.app?.metadata?.short_version !== manifest.version || manifest.app?.metadata?.build_version !== manifest.version) {
+      throw new Error(`${filename} artifact version evidence does not match the release`);
     }
   }
   const archive = path.join(directory, expectedName);
@@ -702,6 +837,7 @@ export function readCompleteArtifactSet(directory) {
     throw new Error(`${releaseManifestName} is not a complete publishable schema-v1 release manifest`);
   }
   assertVersionTag(manifest.version, manifest.tag);
+  assertPublishableSource({ source: { commit: manifest.source_commit, dirty: false }, tag: manifest.tag, version: manifest.version });
   if (manifest.product !== PRODUCT || manifest.bundle_identifier !== BUNDLE_IDENTIFIER) {
     throw new Error(`${releaseManifestName} does not match the application release contract`);
   }
@@ -722,7 +858,7 @@ export function readCompleteArtifactSet(directory) {
     if (fs.statSync(filename).size !== artifact.size || sha256File(filename) !== artifact.sha256) {
       throw new Error(`${artifact.filename} does not match the release manifest`);
     }
-    assertPublishableSignature(artifact.app?.signature, releaseManifestName, artifact.target, artifact.app);
+    trustModeForArtifact(artifact);
     if (
       artifact.app?.metadata?.short_version !== manifest.version ||
       artifact.app?.metadata?.build_version !== manifest.version
@@ -730,6 +866,7 @@ export function readCompleteArtifactSet(directory) {
       throw new Error(`${releaseManifestName} artifact version evidence does not match the release`);
     }
   }
+  assertMatchingMacPolicies(manifest.artifacts);
   validateStagedEntries(directory, [...expectedArchives, releaseManifestName, checksumName]);
 
   const checksumText = fs.readFileSync(path.join(directory, checksumName), "utf8");
@@ -768,7 +905,7 @@ export async function verifyCompleteArtifacts({ directory, inspectTarget }) {
       const evidence = inspectApp(path.join(extracted, `${PRODUCT}.app`), {
         target: inspectTarget,
         version: complete.manifest.version,
-        trustMode: "release",
+        trustMode: trustModeForArtifact(artifact),
       });
       if (canonicalJson(evidence) !== canonicalJson(artifact.app)) {
         throw new Error(`${artifact.filename} final application evidence differs from its manifest`);
@@ -799,6 +936,7 @@ export async function assembleArtifacts({ root, inputs, requirePublishable = fal
   }
   const commits = new Set(records.map((record) => record.manifest.source.commit));
   if (commits.size !== 1) throw new Error("target artifact source commits disagree");
+  assertMatchingMacPolicies(records.map(({ manifest }) => ({ target: manifest.contract.target, signature_policy: manifest.contract.signature_policy })));
   const publishable = records.every((record) => record.manifest.publishable === true);
   if (requirePublishable && !publishable) {
     throw new Error("release assembly requires publishable target artifacts under each platform's release policy");
@@ -820,6 +958,7 @@ export async function assembleArtifacts({ root, inputs, requirePublishable = fal
         ...record.manifest.artifact,
         app: record.manifest.app,
         build_inputs: record.manifest.build_inputs,
+        signature_policy: record.manifest.contract.signature_policy,
         target: record.manifest.contract.target,
       });
     }
@@ -863,6 +1002,11 @@ export async function assembleArtifacts({ root, inputs, requirePublishable = fal
   return finalDirectory;
 }
 
+function assertMatchingMacPolicies(artifacts) {
+  const policies = new Set(artifacts.filter((artifact) => artifact.target !== WINDOWS_TARGET).map((artifact) => artifact.signature_policy));
+  if (policies.size !== 1) throw new Error("Mac target artifact signature policies disagree");
+}
+
 function parseArguments(argv) {
   const [command, ...rest] = argv;
   const options = { command, inputs: [] };
@@ -900,13 +1044,13 @@ async function main() {
     const target = requireOption(options, "target");
     const runnerLabel = options.runnerLabel ?? "local";
     const trustMode = options.trustMode ?? "local";
-    if (!["local", "release"].includes(trustMode)) throw new Error(`unsupported trust mode: ${trustMode}`);
+    signaturePolicyForTrustMode(target, trustMode);
     validateHost(target, runnerLabel);
     const inputs = buildInputs(root, target, runnerLabel, {
       command: target === WINDOWS_TARGET
         ? "verified native Windows build and publication preflight"
-        : "external credentialed publication preflight",
-      status: trustMode === "release" ? "passed-by-caller" : "not-required-local-restage",
+        : trustMode === "unsigned-macos" ? "verified native unsigned Mac publication preflight" : "external credentialed publication preflight",
+      status: trustMode !== "local" ? "passed-by-caller" : "not-required-local-restage",
     });
     await stageApp({
       root,

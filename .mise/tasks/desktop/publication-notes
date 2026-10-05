@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # -*- mode: sh; sh-shell: bash; -*-
-#MISE description="Generate release notes from the validated tag and source"
+#MISE description="Generate release notes from the validated tag, source, and complete artifact policy"
 #USAGE arg "<tag>" help="Exact vMAJOR.MINOR.PATCH release tag"
 #USAGE arg "<output>" help="Release notes output file"
+#USAGE flag "--release-dir <directory>" help="Verified complete release artifact directory (required)"
 
 set -euo pipefail
 
-node scripts/desktop-publication.mjs notes --tag "$usage_tag" --output "$usage_output"
+node scripts/desktop-publication.mjs notes \
+  --tag "$usage_tag" \
+  --output "$usage_output" \
+  --release-dir "${usage_release_dir:-}"

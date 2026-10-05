@@ -11,17 +11,21 @@ import { publicRelease } from "./fixtures/desktop-release.ts";
 
 describe("published desktop download discovery", () => {
   it("uses the release pipeline's exact filenames for all three native targets", () => {
-    expect(desktopReleaseFiles("v0.1.0").assets).toHaveLength(5);
+    expect(desktopReleaseFiles("v0.1.1").assets).toHaveLength(5);
     const release = publishedDesktopRelease(publicRelease());
-    expect(release.version).toBe("0.1.0");
+    expect(release.version).toBe("0.1.1");
     expect(release.downloads).toHaveLength(3);
     for (const download of release.downloads) {
       expect(download.filename).toBe(archiveName(release.version, download.target));
-      expect(download.url).toBe(`https://github.com/antennabench/antennabench/releases/download/v0.1.0/${download.filename}`);
+      expect(download.url).toBe(`https://github.com/antennabench/antennabench/releases/download/v0.1.1/${download.filename}`);
     }
-    expect(release.checksumsUrl).toMatch(/\/AntennaBench-0\.1\.0-SHA256SUMS$/);
-    expect(release.manifestUrl).toMatch(/\/AntennaBench-0\.1\.0-release-manifest\.json$/);
+    expect(release.checksumsUrl).toMatch(/\/AntennaBench-0\.1\.1-SHA256SUMS$/);
+    expect(release.manifestUrl).toMatch(/\/AntennaBench-0\.1\.1-release-manifest\.json$/);
     expect(readPublishedDesktopRelease(JSON.stringify(publicRelease()))).toEqual(release);
+    for (const download of release.downloads.filter(({ target }: { target: string }) => target.endsWith("-apple-darwin"))) {
+      expect(download.format).toBe("macOS app · .zip");
+      expect(download.format).not.toMatch(/signed|notarized/i);
+    }
   });
 
   it.each([

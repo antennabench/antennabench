@@ -5,7 +5,7 @@
 #USAGE arg "<target>" help="Native Rust target" {
 #USAGE   choices "aarch64-apple-darwin" "x86_64-apple-darwin" "x86_64-pc-windows-msvc"
 #USAGE }
-#USAGE flag "--trust-mode <mode>" default="local" help="local or release (signed/notarized Macs, verified unsigned Windows)"
+#USAGE flag "--trust-mode <mode>" default="local" help="local, release (signed/notarized Macs or unsigned Windows), or unsigned-macos"
 #USAGE flag "--tag <tag>" help="Optional exact vMAJOR.MINOR.PATCH release tag"
 #USAGE flag "--runner-label <runner>" default="local" help="Expected native runner label"
 

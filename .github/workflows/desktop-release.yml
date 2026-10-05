@@ -94,10 +94,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  sign:
-    name: Sign and notarize (${{ matrix.target }})
+  macos:
+    name: Verify unsigned Mac archive (${{ matrix.target }})
     needs: build
-    environment: desktop-release
     permissions:
       contents: read
     strategy:
@@ -121,58 +120,37 @@ jobs:
           version: 2026.7.6
           github_token: ${{ github.token }}
 
-      - name: Download exact native signing input
+      - name: Download exact native release input
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: desktop-release-input-${{ matrix.target }}
           path: target/desktop-publication/download/${{ matrix.target }}
 
-      - name: Verify and extract signing input before credential use
+      - name: Verify and extract the manifest-bound native input
         run: >-
           mise run desktop:publication-prepare --
           "target/desktop-publication/download/${{ matrix.target }}"
-          "target/desktop-publication/signing/${{ matrix.target }}"
+          "target/desktop-publication/staging/${{ matrix.target }}"
           "${{ matrix.target }}"
           "${{ github.ref_name }}"
           "${{ github.sha }}"
 
-      - name: Import credentials, sign, notarize, staple, and clean up
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
-        run: >-
-          mise run desktop:publication-sign --
-          "target/desktop-publication/signing/${{ matrix.target }}/AntennaBench.app"
-          "target/desktop-publication/evidence/${{ matrix.target }}"
-
-      - name: Verify final trust and stage the publishable archive
+      - name: Verify unsigned policy and stage the publishable archive
         run: >-
           mise run desktop:release-stage --
-          "target/desktop-publication/signing/${{ matrix.target }}/AntennaBench.app"
+          "target/desktop-publication/staging/${{ matrix.target }}/AntennaBench.app"
           "${{ matrix.target }}"
-          --trust-mode release
+          --trust-mode unsigned-macos
           --tag "${{ github.ref_name }}"
           --runner-label "${{ matrix.runner }}"
 
       - name: Upload exact publishable target artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: desktop-release-signed-${{ matrix.target }}
+          name: desktop-release-ready-${{ matrix.target }}
           path: target/desktop-release/publishable/${{ matrix.target }}
           if-no-files-found: error
           retention-days: 7
-
-      - name: Preserve bounded notarization evidence
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: desktop-release-notarization-${{ matrix.target }}
-          path: target/desktop-publication/evidence/${{ matrix.target }}
-          if-no-files-found: warn
-          retention-days: 30
 
   windows:
     name: Build and verify unsigned Windows installer
@@ -237,7 +215,7 @@ jobs:
 
   assemble:
     name: Assemble exact publishable set
-    needs: [sign, windows]
+    needs: [macos, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -254,14 +232,14 @@ jobs:
       - name: Download Apple silicon artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: desktop-release-signed-aarch64-apple-darwin
-          path: target/desktop-publication/signed/aarch64-apple-darwin
+          name: desktop-release-ready-aarch64-apple-darwin
+          path: target/desktop-publication/ready/aarch64-apple-darwin
 
       - name: Download Intel artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: desktop-release-signed-x86_64-apple-darwin
-          path: target/desktop-publication/signed/x86_64-apple-darwin
+          name: desktop-release-ready-x86_64-apple-darwin
+          path: target/desktop-publication/ready/x86_64-apple-darwin
 
       - name: Download Windows artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -272,8 +250,8 @@ jobs:
       - name: Assemble exact manifest, packages, and checksums
         run: >-
           mise run desktop:release-assemble --
-          target/desktop-publication/signed/aarch64-apple-darwin
-          target/desktop-publication/signed/x86_64-apple-darwin
+          target/desktop-publication/ready/aarch64-apple-darwin
+          target/desktop-publication/ready/x86_64-apple-darwin
           target/desktop-publication/ready/x86_64-pc-windows-msvc
           --require-publishable
 
@@ -336,7 +314,11 @@ jobs:
         run: mise run desktop:release-verify -- target/desktop-release/publishable/complete
 
       - name: Generate release notes
-        run: mise run desktop:publication-notes -- "${{ github.ref_name }}" target/desktop-publication/release-notes.md
+        run: >-
+          mise run desktop:publication-notes --
+          "${{ github.ref_name }}"
+          target/desktop-publication/release-notes.md
+          --release-dir target/desktop-release/publishable/complete
 
       - name: Create or safely resume an exact draft
         env:

@@ -190,7 +190,7 @@ test("Mise action provenance and exact release pins accept LF and Windows CRLF",
   }
 });
 
-test("release workflow validator pins the trusted event and credential boundary", () => {
+test("release workflow validator pins unsigned policy, provenance, and the mutation boundary", () => {
   const valid = `name: release
 on:
   push:
@@ -199,11 +199,13 @@ on:
 permissions:
   contents: read
 jobs:
-  sign:
-    environment: desktop-release
+  macos:
+    needs: build
     steps:
-      - run: echo \${{ secrets.APPLE_CERTIFICATE }} \${{ secrets.APPLE_CERTIFICATE_PASSWORD }} \${{ secrets.APPLE_API_ISSUER }} \${{ secrets.APPLE_API_KEY }} \${{ secrets.APPLE_API_PRIVATE_KEY }}
+      - run: mise run desktop:publication-prepare
+      - run: mise run desktop:release-stage -- app arm --trust-mode unsigned-macos
   assemble:
+    needs: [macos, windows]
     steps:
       - run: mise run desktop:release-assemble -- arm intel --require-publishable
   attest:
@@ -217,6 +219,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - run: mise run desktop:publication-notes -- tag notes --release-dir target/desktop-release/publishable/complete
       - run: mise run desktop:publication-publish-draft
   verify:
     steps:
@@ -224,8 +227,16 @@ jobs:
 `;
   for (const validate of lineEndingValidators(validateReleaseWorkflowText)) {
     assert.deepEqual(validate(valid), []);
-    assert.ok(validate(valid.replace("environment: desktop-release", "environment: ci")).length);
-    assert.ok(validate(valid.replace("  assemble:\n", "  leak:\n    run: echo ${{ secrets.APPLE_API_KEY }}\n  assemble:\n")).length);
+    assert.ok(validate(valid.replace("    needs: build", "    environment: desktop-release\n    needs: build")).length);
+    assert.ok(validate(valid.replace("  assemble:\n", "  leak:\n    run: echo ${{ secrets.UNRELATED_SECRET }}\n  assemble:\n")).length);
+    assert.ok(validate(valid.replace("--trust-mode unsigned-macos", "--trust-mode release")).length);
+    assert.ok(validate(valid.replace("publication-prepare", "publication-sign")).length);
+    assert.ok(validate(valid.replace("needs: [macos, windows]", "needs: windows")).length);
+    assert.ok(validate(valid.replace("--release-dir target/desktop-release/publishable/complete", "")).length);
+    assert.ok(validate(valid.replace("  assemble:\n", "  assemble:\n    permissions:\n      contents: write\n")).length);
+    assert.ok(validate(valid.replace("  macos:\n", "  macos:\n    permissions:\n      id-token: write\n")).length);
+    assert.ok(validate(valid.replace("  attest:\n", "  misplaced_provenance:\n")).length);
+    assert.ok(validate(valid.replace("  publish:\n", "  misplaced_mutation:\n")).length);
     assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n")).length);
     assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n  push:\n")).length);
     assert.ok(validate(valid.replace("publication-publish-draft", "gh release publish")).length);

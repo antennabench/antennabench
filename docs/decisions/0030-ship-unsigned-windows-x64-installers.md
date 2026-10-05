@@ -4,6 +4,10 @@ Date: 2026-10-04
 
 Amends the platform and asset contract in
 [Decision 0007](0007-ship-separate-signed-macos-release-archives.md).
+The macOS trust and early-preview promotion requirements below are subsequently
+amended by [Decision 0031](0031-ship-unsigned-macos-early-previews.md). The
+original decision is retained as historical context; current release procedure
+lives in [Desktop Releases](../releasing.md).
 
 ## Decision
 
