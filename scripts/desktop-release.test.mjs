@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -401,6 +402,36 @@ test("complete-set verification rechecks exact publishable bytes and trust evide
     fs.writeFileSync(installer, original);
     fs.appendFileSync(path.join(output, "AntennaBench-0.1.0-SHA256SUMS"), "unexpected\n");
     assert.throws(() => readCompleteArtifactSet(output), /does not exactly match/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("release CLI assembles repeated inputs and verifies one complete set while rejecting duplicate inputs", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "desktop release CLI "));
+  const script = fileURLToPath(new URL("./desktop-release.mjs", import.meta.url));
+  const invoke = (...args) => spawnSync(process.execPath, [script, ...args], {
+    cwd: root, encoding: "utf8", timeout: 30_000,
+  });
+  try {
+    const inputs = RELEASE_TARGETS.map((target) => targetFixture(root, target).directory);
+    const assembled = invoke("assemble", ...inputs.flatMap((input) => ["--input", input]), "--require-publishable");
+    assert.equal(assembled.status, 0, assembled.error?.message ?? `${assembled.stdout}${assembled.stderr}`);
+    const output = path.join(root, "target", "desktop-release", "publishable", "complete");
+    assert.equal(readCompleteArtifactSet(output).entries.length, 5);
+    const verified = invoke("verify", "--input", output);
+    assert.equal(verified.status, 0, verified.error?.message ?? `${verified.stdout}${verified.stderr}`);
+    assert.match(verified.stdout, /Verified complete release set/);
+    const duplicate = invoke("verify", "--input", output, "--input", output);
+    assert.equal(duplicate.status, 1);
+    assert.match(duplicate.stderr, /verify accepts only one --input/);
+    const missing = invoke("verify");
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /missing --input/);
+    fs.appendFileSync(path.join(output, archiveName("0.1.0", WINDOWS_TARGET)), "tampered");
+    const tampered = invoke("verify", "--input", output);
+    assert.equal(tampered.status, 1);
+    assert.match(tampered.stderr, /does not match the release manifest/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

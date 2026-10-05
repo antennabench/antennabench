@@ -1013,7 +1013,11 @@ function parseArguments(argv) {
   for (let index = 0; index < rest.length; index += 1) {
     const key = rest[index];
     if (key === "--require-publishable") options.requirePublishable = true;
-    else if (key === "--input") options.inputs.push(rest[++index]);
+    else if (key === "--input" && command === "assemble") options.inputs.push(rest[++index]);
+    else if (key === "--input" && command === "verify") {
+      if (options.input !== undefined) throw new Error("verify accepts only one --input");
+      options.input = rest[++index];
+    }
     else if (key.startsWith("--")) options[camelCase(key.slice(2))] = rest[++index];
     else throw new Error(`unexpected argument: ${key}`);
   }
