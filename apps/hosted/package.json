@@ -27,7 +27,7 @@
     "@cloudflare/containers": "0.3.7"
   },
   "devDependencies": {
-    "@types/node": "26.1.2",
+    "@types/node": "26.6.4",
     "astro": "7.3.5",
     "typescript": "7.0.2",
     "vitest": "4.1.11",
