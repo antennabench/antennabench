@@ -31,7 +31,7 @@ in issue #60 before publication. Then:
    version is the intended stable `MAJOR.MINOR.PATCH` value.
 2. Create and push the matching tag at a commit reachable from `origin/main`.
    Never move or reuse a release tag. Preserve the blocked `v0.1.0` and failed
-   `v0.1.1` tags intact; the next unsigned-Mac candidate is `v0.1.2`.
+   `v0.1.1` tags intact; the current unsigned-Mac candidate is `v0.1.2`.
 3. Confirm the tag, source commit, version, native runners, and explicit Mac
    `unsigned-macos` policy in the workflow evidence.
 4. Wait for all three downloaded-draft verification jobs to pass. A completed
@@ -82,10 +82,19 @@ AntennaBench-<version>-SHA256SUMS
 ```
 
 GitHub build provenance covers all five files before the draft job receives
-`contents: write`; it is the only job with contents-write permission. Downloaded-draft jobs
-authenticate the exact source and attestations before native inspection, then
-repeat checksums, manifest, package, embedded metadata, architecture, notices,
-and the selected platform trust checks. The reviewed
+`contents: write`; it is the only job with contents-write permission in the
+release workflow. After creating or verifying the draft, that job downloads
+the actual five private release assets, verifies their exact set, checksums,
+manifest, tagged source commit, and attestations, then uploads those bytes as
+the Actions artifact `desktop-release-downloaded-draft`. The handoff contains
+the downloaded release assets, not a replacement copy from the build jobs.
+
+The three native consumers have only `contents: read` and `attestations: read`.
+They independently authenticate all five handed-off assets against the exact
+tagged source and release-workflow provenance before extracting or executing
+any package. They then repeat native package, embedded metadata, architecture,
+notices, and selected platform trust checks. Read-only tokens do not need
+access to the private draft itself. The reviewed
 `THIRD_PARTY_NOTICES.txt` must be in `Contents/Resources/` on macOS and beside
 the executable on Windows, including the complete CDLA-Permissive-2.0 agreement
 for the packaged CA-root data.
@@ -182,6 +191,39 @@ withdrawn in project communication, retire its tag, and publish a corrected
 higher version. Checksum, manifest, native package, selected trust-policy, or
 attestation disagreement makes a candidate unreleasable; resolve the failure
 instead of bypassing it.
+
+### Verify An Existing Complete Draft
+
+If a complete, attested private draft exists and only the verification
+infrastructure failed, use the **Verify existing desktop release draft**
+workflow in `.github/workflows/desktop-release-verify.yml`. Dispatch it from
+reviewed `main` with the existing tag:
+
+```bash
+gh workflow run desktop-release-verify.yml --ref main -f tag=v0.1.2
+```
+
+The downloader checks out the reviewed verification helpers at the workspace
+root and the existing tag under `release-source`. It records the actual tagged
+commit and passes that expected identity to every verification command. Its
+Ubuntu job alone receives `contents: write`, which is needed to download a
+private draft, plus `attestations: read`. It authenticates all five downloaded
+assets and hands them to the same three read-only native consumers. Each
+consumer checks out the recorded release commit under `release-source` and
+reauthenticates all five assets before native inspection. The helpers may be
+newer than the release source; provenance must still identify the original
+tagged build from `.github/workflows/desktop-release.yml`.
+
+This recovery verifies existing bytes without rebuilding, changing release
+assets, moving the tag, or publishing. For `v0.1.2`, keep source commit
+`19641e0198ad2eebc407ab06684f51cf681400ff` and the original failed workflow run
+intact: building, staging, assembly, attestation, and draft creation passed,
+but the original read-only jobs could not download the private draft. A later
+successful recovery supplies new verification evidence; it does not make that
+run green or supply deferred human observations. Require all three native
+recovery jobs to pass before owner promotion. Binary, manifest, trust-policy,
+checksum, or attestation defects still require correction under a new version
+and tag.
 
 ## Future Developer ID Releases
 

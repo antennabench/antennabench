@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -10,6 +13,7 @@ import {
   validateNpmConfigText,
   validateNpmWorkspace,
   validateReleaseWorkflowText,
+  validateReleaseRecoveryWorkflowText,
   validateRepository,
   validateUsesText,
 } from "./validate-supply-chain.mjs";
@@ -218,12 +222,45 @@ jobs:
   publish:
     permissions:
       contents: write
+      attestations: read
     steps:
       - run: mise run desktop:publication-notes -- tag notes --release-dir target/desktop-release/publishable/complete
       - run: mise run desktop:publication-publish-draft
+      - run: >-
+          mise run desktop:publication-download-draft --
+          "\${{ github.ref_name }}"
+          target/desktop-publication/downloaded-draft
+          "\${{ github.sha }}"
+      - uses: actions/upload-artifact@${SHA} # v7.0.1
+        with:
+          name: desktop-release-downloaded-draft
+          path: target/desktop-publication/downloaded-draft
   verify:
+    needs: publish
+    permissions:
+      contents: read
+      attestations: read
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-15
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+    runs-on: \${{ matrix.runner }}
     steps:
-      - run: mise run desktop:publication-verify-draft
+      - uses: actions/download-artifact@${SHA} # v8.0.1
+        with:
+          name: desktop-release-downloaded-draft
+          path: target/desktop-publication/downloaded-draft
+      - run: >-
+          mise run desktop:publication-verify-downloaded --
+          "\${{ github.ref_name }}"
+          "\${{ matrix.target }}"
+          target/desktop-publication/downloaded-draft
+          "\${{ github.sha }}"
 `;
   for (const validate of lineEndingValidators(validateReleaseWorkflowText)) {
     assert.deepEqual(validate(valid), []);
@@ -240,6 +277,95 @@ jobs:
     assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n")).length);
     assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n  push:\n")).length);
     assert.ok(validate(valid.replace("publication-publish-draft", "gh release publish")).length);
+    assert.ok(validate(valid.replace("needs: publish", "needs: attest")).length);
+    assert.ok(validate(valid.replace('"${{ github.sha }}"', '"${{ github.ref_name }}"')).length);
+    assert.ok(validate(valid.replace("name: desktop-release-downloaded-draft", "name: desktop-release-complete")).length);
+    assert.ok(validate(valid.replace("publication-verify-downloaded", "publication-verify-draft")).length);
+    assert.ok(validate(valid.replace("  verify:\n", "  verify:\n    permissions:\n      contents: write\n")).length);
+    assert.ok(validate(valid.replace("runner: windows-2025", "runner: ubuntu-24.04")).length);
+    assert.ok(validate(valid.replace("      attestations: read\n", "")).length);
+  }
+});
+
+test("private draft recovery pins reviewed helpers, tagged source, visibility permissions, and native handoff", () => {
+  const valid = fs.readFileSync(new URL("../.github/workflows/desktop-release-verify.yml", import.meta.url), "utf8");
+  const mutations = [
+    ["  workflow_dispatch:\n", "  push:\n"],
+    ["  workflow_dispatch:\n", "  push:\n  workflow_dispatch:\n"],
+    ["required: true", "required: false"],
+    ["type: string", "type: choice"],
+    ["      tag:\n", "      revision:\n"],
+    ["  download:\n", "  other_download:\n"],
+    ["jobs:\n", "jobs:\n  extra:\n    runs-on: ubuntu-24.04\n"],
+    ["      contents: write", "      contents: read"],
+    ["  verify:\n", "  verify:\n    permissions:\n      contents: write\n"],
+    ["      contents: write\n", "      contents: write\n      id-token: write\n"],
+    ["      attestations: read", "      attestations: write"],
+    ["    needs: download", "    needs: publish"],
+    ["    runs-on: ubuntu-24.04", "    runs-on: windows-2025"],
+    ["runner: windows-2025", "runner: ubuntu-24.04"],
+    ["  verify:\n", "  verify:\n    environment: desktop-release\n"],
+    ["  verify:\n", "  verify:\n    env:\n      LEAK: ${{ secrets.UNRELATED_SECRET }}\n"],
+    ["      - name: Download and authenticate all five private draft assets", "      - run: gh release edit v0.1.2 --draft=false\n      - name: Download and authenticate all five private draft assets"],
+    ["publication-download-draft", "release-bundle"],
+    ["publication-verify-downloaded", "publication-verify-draft"],
+    ["ref: ${{ github.sha }}", "ref: ${{ inputs.tag }}"],
+    ["helper_commit=$(git rev-parse HEAD)", "helper_commit=$(git rev-parse origin/main)"],
+    ['git merge-base --is-ancestor "$helper_commit" origin/main', 'git merge-base --is-ancestor "$helper_commit" origin/main || true'],
+    ["ref: refs/tags/${{ inputs.tag }}", "ref: refs/heads/main"],
+    ["path: release-source", "path: unreviewed-source"],
+    ["git -C release-source rev-parse HEAD", "git rev-parse HEAD"],
+    ["source_commit: ${{ steps.source.outputs.commit }}", "source_commit: ${{ github.sha }}"],
+    ["ref: ${{ needs.download.outputs.source_commit }}", "ref: refs/tags/${{ inputs.tag }}"],
+    ["SOURCE_COMMIT: ${{ steps.source.outputs.commit }}", "SOURCE_COMMIT: ${{ github.sha }}"],
+    ["SOURCE_COMMIT: ${{ needs.download.outputs.source_commit }}", "SOURCE_COMMIT: ${{ github.sha }}"],
+    ["RELEASE_TAG: ${{ inputs.tag }}", "RELEASE_TAG: v0.1.2"],
+    ['[[ "$RELEASE_TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]', '[[ "$RELEASE_TAG" =~ .* ]]'],
+    ['"$SOURCE_COMMIT"\n', '"${{ github.sha }}"\n'],
+    ["--root release-source", "--root ."],
+    ["name: desktop-release-downloaded-draft", "name: desktop-release-ready"],
+    ["path: target/desktop-publication/downloaded-draft", "path: target/desktop-release/publishable/complete"],
+    ["uses: actions/download-artifact@", "uses: actions/upload-artifact@"],
+    ["  verify:\n", "  verify:\n    defaults:\n      run:\n        working-directory: release-source\n"],
+  ];
+  for (const validate of lineEndingValidators(validateReleaseRecoveryWorkflowText)) {
+    assert.deepEqual(validate(valid), []);
+    for (const [before, after] of mutations) {
+      const changed = valid.replace(before, after);
+      assert.notEqual(changed, valid, `fixture must exercise ${before}`);
+      assert.ok(validate(changed).length > 0, `${before} -> ${after}`);
+    }
+  }
+});
+
+test("repository validation applies recovery policy to LF and CRLF checkouts and requires the workflow", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "supply-chain-recovery-"));
+  try {
+    const files = [
+      ".github/dependabot.yml", ".github/dependency-policy.json", ".mise/config.toml", ".npmrc",
+      "Cargo.toml", "Cargo.lock", "package.json", "package-lock.json",
+      "apps/desktop/package.json", "apps/hosted/package.json",
+    ];
+    const workflowRoot = path.join(root, ".github", "workflows");
+    fs.mkdirSync(workflowRoot, { recursive: true });
+    for (const relative of files) {
+      fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+      fs.copyFileSync(path.resolve(relative), path.join(root, relative));
+    }
+    for (const newline of ["\n", "\r\n"]) {
+      for (const workflow of fs.readdirSync(path.resolve(".github/workflows"))) {
+        const text = fs.readFileSync(path.resolve(".github/workflows", workflow), "utf8");
+        fs.writeFileSync(path.join(workflowRoot, workflow), text.replaceAll("\r\n", "\n").replaceAll("\n", newline));
+      }
+      assert.deepEqual(validateRepository(root), []);
+      const recoveryPath = path.join(workflowRoot, "desktop-release-verify.yml");
+      fs.writeFileSync(recoveryPath, fs.readFileSync(recoveryPath, "utf8").replace("needs: download", "needs: publish"));
+      assert.ok(validateRepository(root).some((error) => error.includes("desktop-release-verify.yml") && error.includes("precede")));
+      fs.rmSync(recoveryPath);
+      assert.ok(validateRepository(root).some((error) => error.includes("recovery workflow is missing")));
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

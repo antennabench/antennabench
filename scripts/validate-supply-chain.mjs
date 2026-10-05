@@ -188,17 +188,65 @@ export function validateMiseWorkflowText(text, source = ".github/workflows/ci.ym
     : [`${source}: Mise must use an exact reviewed release`];
 }
 
+function workflowJobBlocks(text) {
+  const jobs = text.match(/^jobs:[\t ]*\n([\s\S]*)/m)?.[1] ?? "";
+  return new Map([...jobs.matchAll(/^  ([a-z][a-z0-9_-]*):[\t ]*\n([\s\S]*?)(?=^  [a-z][a-z0-9_-]*:|(?![\s\S]))/gm)]
+    .map((match) => [match[1], match[2]]));
+}
+
+function exactJobPermissions(job, expected) {
+  const block = job.match(/^    permissions:[\t ]*\n((?: {6}.*(?:\n|$))*)/m)?.[1] ?? "";
+  const entries = [...block.matchAll(/^ {6}([a-z-]+):[\t ]*(read|write|none)[\t ]*$/gm)]
+    .map((match) => [match[1], match[2]]);
+  return entries.length === Object.keys(expected).length && sameRecord(Object.fromEntries(entries), expected);
+}
+
+function artifactHandoff(job, action) {
+  return new RegExp(`uses: actions/${action}-artifact@[0-9a-f]{40}[^\\n]*\\n {8}with:\\n {10}name: desktop-release-downloaded-draft\\n {10}path: target/desktop-publication/downloaded-draft(?:\\n|$)`).test(job);
+}
+
+function validatePrivateDraftHandoff(download, verify, source) {
+  const errors = [];
+  if (!exactJobPermissions(download, { contents: "write", attestations: "read" })) {
+    errors.push(`${source}: private draft download must have only contents write and attestations read`);
+  }
+  if (!exactJobPermissions(verify, { contents: "read", attestations: "read" })) {
+    errors.push(`${source}: native verification must have only contents read and attestations read`);
+  }
+  if (!artifactHandoff(download, "upload") || !artifactHandoff(verify, "download")) {
+    errors.push(`${source}: native verification must consume the exact downloaded private-draft handoff`);
+  }
+  if (download.indexOf("publication-download-draft") > download.indexOf("uses: actions/upload-artifact@") ||
+      verify.indexOf("uses: actions/download-artifact@") > verify.indexOf("publication-verify-downloaded")) {
+    errors.push(`${source}: draft authentication and native verification must follow the handoff order`);
+  }
+  const targets = [...verify.matchAll(/^ {10}- target: ([a-z0-9_-]+)\n {12}runner: ([a-z0-9-]+)[\t ]*$/gm)]
+    .map((match) => [match[1], match[2]]);
+  const expected = [
+    ["aarch64-apple-darwin", "macos-15"],
+    ["x86_64-apple-darwin", "macos-15-intel"],
+    ["x86_64-pc-windows-msvc", "windows-2025"],
+  ];
+  if (JSON.stringify(targets) !== JSON.stringify(expected) ||
+      !/^    runs-on: \$\{\{ matrix\.runner \}\}[\t ]*$/m.test(verify)) {
+    errors.push(`${source}: native verification must cover the exact three dated native runners`);
+  }
+  return errors;
+}
+
 export function validateReleaseWorkflowText(
   text,
   source = ".github/workflows/desktop-release.yml",
 ) {
   text = text.replaceAll("\r\n", "\n");
   const errors = [];
-  const jobBlock = (name) => text.match(new RegExp(`^  ${name}:\\s*\\n([\\s\\S]*?)(?=^  [a-z][a-z0-9_-]*:|(?![\\s\\S]))`, "m"))?.[1] ?? "";
+  const jobs = workflowJobBlocks(text);
+  const jobBlock = (name) => jobs.get(name) ?? "";
   const macos = jobBlock("macos");
   const assemble = jobBlock("assemble");
   const attest = jobBlock("attest");
   const publish = jobBlock("publish");
+  const verify = jobBlock("verify");
   const required = [
     [/^  push:\s*\n    tags:\s*\n      - "v\*"\s*$/m, "must trigger only from v* tag pushes"],
     [/^  macos:\s*$/m, "must have an isolated unsigned Mac staging job"],
@@ -208,12 +256,13 @@ export function validateReleaseWorkflowText(
     [/^      attestations: write\s*$/m, "attestation job must have attestation write permission"],
     [/^      contents: write\s*$/m, "one release mutation job must have contents write permission"],
     [/mise run desktop:publication-publish-draft/, "must use the fail-closed draft publication task"],
-    [/mise run desktop:publication-verify-draft/, "must re-download and verify draft bytes"],
+    [/mise run desktop:publication-download-draft/, "must download and authenticate private draft bytes"],
+    [/mise run desktop:publication-verify-downloaded/, "must reauthenticate the handoff before native verification"],
   ];
   for (const [pattern, message] of required) {
     if (!pattern.test(text)) errors.push(`${source}: ${message}`);
   }
-  for (const forbidden of ["pull_request:", "workflow_dispatch:", "--clobber", "gh release publish", "--prerelease", "publication-sign", "APPLE_"]) {
+  for (const forbidden of ["pull_request:", "workflow_dispatch:", "--clobber", "gh release publish", "--prerelease", "publication-sign", "publication-verify-draft", "APPLE_"]) {
     if (text.includes(forbidden)) errors.push(`${source}: forbidden release path token ${forbidden}`);
   }
   if (/^\s+environment:/m.test(text) || /secrets\./.test(text)) {
@@ -236,12 +285,90 @@ export function validateReleaseWorkflowText(
   if (!publish.includes("--release-dir target/desktop-release/publishable/complete")) {
     errors.push(`${source}: release notes must derive signature policy from the verified complete set`);
   }
+  errors.push(...validatePrivateDraftHandoff(publish, verify, source));
+  if (!/^    needs: publish[\t ]*$/m.test(verify)) {
+    errors.push(`${source}: native verification must wait for the authenticated private-draft download`);
+  }
+  if (!/mise run desktop:publication-download-draft --\s+"\$\{\{ github\.ref_name \}\}"\s+target\/desktop-publication\/downloaded-draft\s+"\$\{\{ github\.sha \}\}"(?:\s|$)/.test(publish) ||
+      !/mise run desktop:publication-verify-downloaded --\s+"\$\{\{ github\.ref_name \}\}"\s+"\$\{\{ matrix\.target \}\}"\s+target\/desktop-publication\/downloaded-draft\s+"\$\{\{ github\.sha \}\}"(?:\s|$)/.test(verify)) {
+    errors.push(`${source}: draft handoff commands must pin the exact tagged workflow source`);
+  }
   if ((text.match(/^      id-token: write\s*$/gm) ?? []).length !== 1) {
     errors.push(`${source}: OIDC write must be limited to one attestation job`);
   }
   if ((text.match(/^      attestations: write\s*$/gm) ?? []).length !== 1 ||
       !/^      id-token: write\s*$/m.test(attest) || !/^      attestations: write\s*$/m.test(attest)) {
     errors.push(`${source}: provenance permissions must be limited to the attestation job`);
+  }
+  return errors;
+}
+
+export function validateReleaseRecoveryWorkflowText(
+  text,
+  source = ".github/workflows/desktop-release-verify.yml",
+) {
+  text = text.replaceAll("\r\n", "\n");
+  const errors = [];
+  const onBlock = text.match(/^on:[\t ]*\n([\s\S]*?)(?=^\S|(?![\s\S]))/m)?.[1] ?? "";
+  const triggers = [...onBlock.matchAll(/^ {2}([\w-]+):/gm)].map((match) => match[1]);
+  const inputs = [...onBlock.matchAll(/^ {6}([\w-]+):/gm)].map((match) => match[1]);
+  if (JSON.stringify(triggers) !== JSON.stringify(["workflow_dispatch"]) ||
+      JSON.stringify(inputs) !== JSON.stringify(["tag"]) ||
+      !/^ {8}required: true[\t ]*$/m.test(onBlock) || !/^ {8}type: string[\t ]*$/m.test(onBlock)) {
+    errors.push(`${source}: recovery must be manual and require only one string tag input`);
+  }
+  const jobs = workflowJobBlocks(text);
+  if (JSON.stringify([...jobs.keys()].sort()) !== JSON.stringify(["download", "verify"])) {
+    errors.push(`${source}: recovery must contain only the private-draft download and native verification jobs`);
+  }
+  const download = jobs.get("download") ?? "";
+  const verify = jobs.get("verify") ?? "";
+  if (!/^    runs-on: ubuntu-24\.04[\t ]*$/m.test(download) ||
+      !/^    needs: download[\t ]*$/m.test(verify)) {
+    errors.push(`${source}: one Ubuntu download must precede the native verification jobs`);
+  }
+  if (!/^permissions:[\t ]*\n {2}contents: read[\t ]*$/m.test(text) ||
+      (text.match(/^ {6}contents: write[\t ]*$/gm) ?? []).length !== 1 ||
+      /^\s+(?:id-token|attestations): write[\t ]*$/m.test(text)) {
+    errors.push(`${source}: recovery may grant contents write only for private-draft visibility and must not issue attestations`);
+  }
+  errors.push(...validatePrivateDraftHandoff(download, verify, source));
+  for (const forbidden of ["--clobber", "--prerelease", "publication-publish-draft", "publication-verify-draft", "publication-sign", "desktop:release-bundle", "desktop:release-stage", "desktop:release-assemble", "desktop:build", "actions/attest@", "APPLE_"]) {
+    if (text.includes(forbidden)) errors.push(`${source}: forbidden recovery path token ${forbidden}`);
+  }
+  if (/\bgh\s+release\s+(?:create|edit|upload|delete|publish)\b/.test(text) ||
+      /\bgit\s+push\b/.test(text) || /^\s+environment:/m.test(text) || /secrets\./.test(text)) {
+    errors.push(`${source}: recovery must not mutate releases, publish source, request environments, or reference secrets`);
+  }
+  for (const [name, job] of [["download", download], ["verify", verify]]) {
+    if (!/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n {8}with:\n {10}ref: \$\{\{ github\.sha \}\}\n {10}fetch-depth: 0(?:\n|$)/.test(job) ||
+        !/^ {10}helper_commit=\$\(git rev-parse HEAD\)[\t ]*$/m.test(job) ||
+        !/^ {10}git merge-base --is-ancestor "\$helper_commit" origin\/main[\t ]*$/m.test(job)) {
+      errors.push(`${source}: ${name} helpers must come from the exact reviewed workflow source in main history`);
+    }
+    if (/^\s+(?:working-directory|repository):/m.test(job)) {
+      errors.push(`${source}: ${name} must run the reviewed helpers from this repository root`);
+    }
+  }
+  if (!/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n {8}with:\n {10}ref: refs\/tags\/\$\{\{ inputs\.tag \}\}\n {10}path: release-source\n {10}fetch-depth: 0(?:\n|$)/.test(download) ||
+      !/^ {6}source_commit: \$\{\{ steps\.source\.outputs\.commit \}\}[\t ]*$/m.test(download) ||
+      !/^ {8}id: source[\t ]*$/m.test(download) ||
+      !/^ {8}run: echo "commit=\$\(git -C release-source rev-parse HEAD\)" >> "\$GITHUB_OUTPUT"[\t ]*$/m.test(download)) {
+    errors.push(`${source}: recovery download must record the actual checked-out release tag commit`);
+  }
+  if (!/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n {8}with:\n {10}ref: \$\{\{ needs\.download\.outputs\.source_commit \}\}\n {10}path: release-source\n {10}fetch-depth: 0(?:\n|$)/.test(verify) ||
+      !/^ {10}SOURCE_COMMIT: \$\{\{ steps\.source\.outputs\.commit \}\}[\t ]*$/m.test(download) ||
+      !/^ {10}SOURCE_COMMIT: \$\{\{ needs\.download\.outputs\.source_commit \}\}[\t ]*$/m.test(verify)) {
+    errors.push(`${source}: native recovery must retain the authenticated tagged commit from download`);
+  }
+  const tagSources = text.match(/^ {10}RELEASE_TAG: \$\{\{ inputs\.tag \}\}[\t ]*$/gm) ?? [];
+  if (tagSources.length !== 3 ||
+      !/^ {10}\[\[ "\$RELEASE_TAG" =~ \^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$ \]\][\t ]*$/m.test(download)) {
+    errors.push(`${source}: recovery must validate and consistently retain the explicit stable tag`);
+  }
+  if (!/mise run desktop:publication-download-draft --\s+"\$RELEASE_TAG"\s+target\/desktop-publication\/downloaded-draft\s+"\$SOURCE_COMMIT"\s+--root release-source(?:\s|$)/.test(download) ||
+      !/mise run desktop:publication-verify-downloaded --\s+"\$RELEASE_TAG"\s+"\$\{\{ matrix\.target \}\}"\s+target\/desktop-publication\/downloaded-draft\s+"\$SOURCE_COMMIT"\s+--root release-source(?:\s|$)/.test(verify)) {
+    errors.push(`${source}: recovery commands must authenticate the exact tagged source with reviewed root helpers`);
   }
   return errors;
 }
@@ -300,11 +427,16 @@ export function validateRepository(root) {
     }
     if (file === "desktop-release.yml") {
       errors.push(...validateReleaseWorkflowText(text, relative));
+    } else if (file === "desktop-release-verify.yml") {
+      errors.push(...validateReleaseRecoveryWorkflowText(text, relative));
     } else if (file === "hosted-site-deploy.yml") {
       errors.push(...validateHostedSiteDeployWorkflowText(text, relative));
     } else if (/secrets\./.test(text)) {
       errors.push(`${relative}: ordinary workflow must not reference repository secrets`);
     }
+  }
+  if (!fs.existsSync(path.join(workflowRoot, "desktop-release-verify.yml"))) {
+    errors.push(".github/workflows/desktop-release-verify.yml: reviewed private-draft recovery workflow is missing");
   }
 
   const dependabotPath = path.join(root, ".github", "dependabot.yml");

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# -*- mode: sh; sh-shell: bash; -*-
+#MISE description="Authenticate all five handed-off draft assets before inspecting the native package"
+#USAGE arg "<tag>" help="Exact vMAJOR.MINOR.PATCH release tag"
+#USAGE arg "<target>" help="Native target package to install or extract and verify" {
+#USAGE   choices "aarch64-apple-darwin" "x86_64-apple-darwin" "x86_64-pc-windows-msvc"
+#USAGE }
+#USAGE arg "<input>" help="Complete directory of downloaded private draft assets"
+#USAGE arg "<expected-commit>" help="Full commit SHA of the tagged release source"
+#USAGE flag "--root <root>" help="Separate tagged source checkout to validate" default="."
+
+set -euo pipefail
+
+node scripts/desktop-publication.mjs verify-downloaded \
+  --tag "$usage_tag" \
+  --target "$usage_target" \
+  --input "$usage_input" \
+  --expected-commit "$usage_expected_commit" \
+  --root "$usage_root"
