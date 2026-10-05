@@ -213,15 +213,18 @@ if (desktopReleaseTag === "unavailable") {
 }
 
 const sitemap = readFileSync(join(outputRoot, "sitemap.xml"), "utf8");
+const sitemapUrls = new Set(
+  [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]),
+);
 invariant(
-  sitemap.includes("https://antennabench.com/sample-report/summary/") &&
-    sitemap.includes("https://antennabench.com/download/") &&
-    sitemap.includes("https://antennabench.com/sample-report/") &&
-    sitemap.includes("https://antennabench.com/sample-report/inconclusive/"),
+  sitemapUrls.has("https://antennabench.com/sample-report/summary/") &&
+    sitemapUrls.has("https://antennabench.com/download/") &&
+    sitemapUrls.has("https://antennabench.com/sample-report/") &&
+    sitemapUrls.has("https://antennabench.com/sample-report/inconclusive/"),
   "Sitemap is missing a public sample route",
 );
 invariant(
-  !sitemap.includes("https://antennabench.com/sample-report/compact/"),
+  !sitemapUrls.has("https://antennabench.com/sample-report/compact/"),
   "Summary compatibility route must not appear in the sitemap",
 );
 
