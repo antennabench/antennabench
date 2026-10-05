@@ -30,8 +30,8 @@ in issue #60 before publication. Then:
 1. Confirm `main` is green, the working copy is clean, and the Cargo workspace
    version is the intended stable `MAJOR.MINOR.PATCH` value.
 2. Create and push the matching tag at a commit reachable from `origin/main`.
-   Never move or reuse a release tag. The abandoned `v0.1.0` tag remains intact;
-   the unsigned-Mac policy starts with the new `v0.1.1` candidate.
+   Never move or reuse a release tag. Preserve the blocked `v0.1.0` and failed
+   `v0.1.1` tags intact; the next unsigned-Mac candidate is `v0.1.2`.
 3. Confirm the tag, source commit, version, native runners, and explicit Mac
    `unsigned-macos` policy in the workflow evidence.
 4. Wait for all three downloaded-draft verification jobs to pass. A completed
