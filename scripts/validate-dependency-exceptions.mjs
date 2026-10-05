@@ -37,6 +37,7 @@ export function validateExceptions(document, { today, lockText, denyText }) {
     return ["dependency exceptions must use schema version 1 with an exceptions array"];
   }
 
+  denyText = denyText.replaceAll("\r\n", "\n");
   const packages = lockedPackages(lockText);
   const ids = new Set();
   for (const [index, exception] of document.exceptions.entries()) {
@@ -127,6 +128,7 @@ export function validateExceptions(document, { today, lockText, denyText }) {
 }
 
 export function validateDenyPolicyText(text, source = "deny.toml") {
+  text = text.replaceAll("\r\n", "\n");
   const errors = [];
   const requirements = [
     [/^all-features = true$/m, "all features must be evaluated"],
@@ -162,11 +164,14 @@ export function validateDenyPolicyText(text, source = "deny.toml") {
 }
 
 export function validateFreshGate({ advisoryTask, releaseTask, workflow }) {
+  advisoryTask = advisoryTask.replaceAll("\r\n", "\n");
+  releaseTask = releaseTask.replaceAll("\r\n", "\n");
+  workflow = workflow.replaceAll("\r\n", "\n");
   const errors = [];
   if (!/^set -euo pipefail$/m.test(advisoryTask)) {
     errors.push("advisory-fresh: task must fail on every command error");
   }
-  if (!/^cargo deny --locked check advisories$/m.test(advisoryTask)) {
+  if (!/^node scripts\/run-cargo-deny\.mjs --locked check advisories$/m.test(advisoryTask)) {
     errors.push("advisory-fresh: task must run a locked advisory check");
   }
   if (/--(?:offline|disable-fetch)|\|\||\|\s*true|;\s*true/.test(advisoryTask)) {
@@ -218,6 +223,7 @@ function parseDate(value) {
 }
 
 function lockedPackages(lockText) {
+  lockText = lockText.replaceAll("\r\n", "\n");
   const packages = new Set();
   for (const match of lockText.matchAll(/\[\[package\]\]\nname = "([^"]+)"\nversion = "([^"]+)"/g)) {
     packages.add(`${match[1]}@${match[2]}`);

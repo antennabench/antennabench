@@ -6,6 +6,7 @@ import {
   validateDependencyReviewText,
   validateHostedSiteDeployWorkflowText,
   validateManifestCoverage,
+  validateMiseWorkflowText,
   validateNpmConfigText,
   validateNpmWorkspace,
   validateReleaseWorkflowText,
@@ -15,11 +16,19 @@ import {
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 
-test("accepts immutable actions with release provenance and local actions", () => {
-  assert.deepEqual(
-    validateUsesText(`steps:\n  - uses: actions/checkout@${SHA} # v7.0.0\n  - uses: ./local`),
-    [],
+function lineEndingValidators(validator) {
+  return ["\n", "\r\n"].map((newline) => (text) =>
+    validator(text.replaceAll("\r\n", "\n").replaceAll("\n", newline)),
   );
+}
+
+test("accepts immutable actions with release provenance and local actions", () => {
+  for (const validate of lineEndingValidators(validateUsesText)) {
+    assert.deepEqual(
+      validate(`steps:\n  - uses: actions/checkout@${SHA} # v7.0.0\n  - uses: ./local`),
+      [],
+    );
+  }
 });
 
 test("rejects mutable, short, uncommented, container, and remote workflow references", () => {
@@ -30,7 +39,9 @@ test("rejects mutable, short, uncommented, container, and remote workflow refere
     "docker://example/image:latest",
     "owner/repo/.github/workflows/ci.yml@main # v1.0.0",
   ]) {
-    assert.ok(validateUsesText(`- uses: ${reference}`).length > 0, reference);
+    for (const validate of lineEndingValidators(validateUsesText)) {
+      assert.ok(validate(`steps:\n  - uses: ${reference}\n`).length > 0, reference);
+    }
   }
 });
 
@@ -76,13 +87,12 @@ updates:
           - minor
           - patch
 `;
-  assert.deepEqual(validateDependabotText(valid), []);
-  assert.ok(validateDependabotText(valid.replace("interval: weekly", "interval: monthly")).length);
-  assert.ok(validateDependabotText(valid.replace("- patch", "- major")).length);
-  assert.ok(
-    validateDependabotText(valid.replace("applies-to: version-updates", "applies-to: security-updates"))
-      .length,
-  );
+  for (const validate of lineEndingValidators(validateDependabotText)) {
+    assert.deepEqual(validate(valid), []);
+    assert.ok(validate(valid.replace("interval: weekly", "interval: monthly")).length);
+    assert.ok(validate(valid.replace("- patch", "- major")).length);
+    assert.ok(validate(valid.replace("applies-to: version-updates", "applies-to: security-updates")).length);
+  }
 });
 
 test("npm policy requires exact workspace pins, one root lock, and lock agreement", () => {
@@ -117,17 +127,14 @@ test("npm policy requires exact workspace pins, one root lock, and lock agreemen
 
 test("npm configuration preserves exact pins during automated updates", () => {
   const valid = "save-exact=true\nstrict-allow-scripts=true\n";
-  assert.deepEqual(validateNpmConfigText(valid), []);
-  assert.match(
-    validateNpmConfigText(valid.replace("save-exact=true", "save-exact=false"))[0],
-    /save exact/,
-  );
-  assert.match(
-    validateNpmConfigText(
-      valid.replace("strict-allow-scripts=true", "strict-allow-scripts=false"),
-    )[0],
-    /fail closed/,
-  );
+  for (const validate of lineEndingValidators(validateNpmConfigText)) {
+    assert.deepEqual(validate(valid), []);
+    assert.match(validate(valid.replace("save-exact=true", "save-exact=false"))[0], /save exact/);
+    assert.match(
+      validate(valid.replace("strict-allow-scripts=true", "strict-allow-scripts=false"))[0],
+      /fail closed/,
+    );
+  }
 });
 
 test("dependency review is pull-request-only and blocks moderate additions", () => {
@@ -143,9 +150,44 @@ jobs:
         with:
           fail-on-severity: moderate
 `;
-  assert.deepEqual(validateDependencyReviewText(valid), []);
-  assert.ok(validateDependencyReviewText(valid.replace("pull_request:", "push:")).length);
-  assert.ok(validateDependencyReviewText(valid.replace("moderate", "high")).length);
+  for (const validate of lineEndingValidators(validateDependencyReviewText)) {
+    assert.deepEqual(validate(valid), []);
+    assert.ok(validate(valid.replace("pull_request:", "push:")).length);
+    assert.ok(validate(valid.replace("pull_request:\n", "pull_request:\n  push:\n")).length);
+    assert.ok(validate(valid.replace("moderate", "high")).length);
+  }
+});
+
+test("Mise action provenance and exact release pins accept LF and Windows CRLF", () => {
+  const valid = `      - name: Set up mise
+        uses: jdx/mise-action@${SHA} # v4.2.3
+        with:
+          version: 2026.7.6
+          github_token: \${{ github.token }}
+`;
+  for (const newline of ["\n", "\r\n"]) {
+    const workflow = valid.replaceAll("\n", newline);
+    assert.deepEqual(validateMiseWorkflowText(workflow), [], JSON.stringify(newline));
+    for (const version of ["latest", "2026.7", "^2026.7.6", "2026.7.6-rc.1", "2026.7.6.1", ""]) {
+      assert.match(
+        validateMiseWorkflowText(workflow.replace("version: 2026.7.6", `version: ${version}`))[0],
+        /exact reviewed release/,
+        `${JSON.stringify(newline)} ${version}`,
+      );
+    }
+    for (const reference of [
+      "jdx/mise-action@v4.2.3 # v4.2.3",
+      "jdx/mise-action@0123456 # v4.2.3",
+      `jdx/mise-action@${SHA}`,
+      `jdx/mise-action@${SHA} # latest`,
+    ]) {
+      assert.match(
+        validateMiseWorkflowText(workflow.replace(`jdx/mise-action@${SHA} # v4.2.3`, reference))[0],
+        /exact reviewed release/,
+        `${JSON.stringify(newline)} ${reference}`,
+      );
+    }
+  }
 });
 
 test("release workflow validator pins the trusted event and credential boundary", () => {
@@ -180,11 +222,14 @@ jobs:
     steps:
       - run: mise run desktop:publication-verify-draft
 `;
-  assert.deepEqual(validateReleaseWorkflowText(valid), []);
-  assert.ok(validateReleaseWorkflowText(valid.replace("environment: desktop-release", "environment: ci")).length);
-  assert.ok(validateReleaseWorkflowText(valid.replace("  assemble:\n", "  leak:\n    run: echo ${{ secrets.APPLE_API_KEY }}\n  assemble:\n")).length);
-  assert.ok(validateReleaseWorkflowText(valid.replace("  push:\n", "  pull_request:\n")).length);
-  assert.ok(validateReleaseWorkflowText(valid.replace("publication-publish-draft", "gh release publish")).length);
+  for (const validate of lineEndingValidators(validateReleaseWorkflowText)) {
+    assert.deepEqual(validate(valid), []);
+    assert.ok(validate(valid.replace("environment: desktop-release", "environment: ci")).length);
+    assert.ok(validate(valid.replace("  assemble:\n", "  leak:\n    run: echo ${{ secrets.APPLE_API_KEY }}\n  assemble:\n")).length);
+    assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n")).length);
+    assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n  push:\n")).length);
+    assert.ok(validate(valid.replace("publication-publish-draft", "gh release publish")).length);
+  }
 });
 
 test("hosted site deployment pins reviewed main source and protected credentials", () => {
@@ -211,10 +256,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
 `;
-  assert.deepEqual(validateHostedSiteDeployWorkflowText(valid), []);
-  assert.ok(validateHostedSiteDeployWorkflowText(valid.replace("branches: [main]", "branches: [feature]")).length);
-  assert.ok(validateHostedSiteDeployWorkflowText(valid.replace("origin/main", "HEAD^")).length);
-  assert.ok(validateHostedSiteDeployWorkflowText(valid.replace("- name: Deploy static site", "- run: echo ${{ secrets.CLOUDFLARE_API_TOKEN }}\n      - name: Deploy static site")).length);
+  for (const validate of lineEndingValidators(validateHostedSiteDeployWorkflowText)) {
+    assert.deepEqual(validate(valid), []);
+    assert.ok(validate(valid.replace("branches: [main]", "branches: [feature]")).length);
+    assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n  push:\n")).length);
+    assert.ok(validate(valid.replace("origin/main", "HEAD^")).length);
+    assert.ok(validate(valid.replace("- name: Deploy static site", "- run: echo ${{ secrets.CLOUDFLARE_API_TOKEN }}\n      - name: Deploy static site")).length);
+  }
 });
 
 test("the repository satisfies its supply-chain convention", () => {

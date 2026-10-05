@@ -23,7 +23,9 @@ AntennaBench has a complete local, manual workflow for repeatable
   [session bundle](glossary.md#session-bundle).
 
 The repository can also build verified macOS release inputs for Apple silicon and
-Intel. There is not yet a signed public download. `antennabench.com` is the
+Intel and an unsigned Windows 11 x64 NSIS installer. There is not yet a public
+download; native clean-system proof and the release/product promotion gates
+remain required. `antennabench.com` is the
 public information site and canonical sample; it does not offer accounts,
 uploads, or report publishing. The separate hosted-sharing foundation remains a
 non-public, admission-disabled prototype and is not part of the current product.
@@ -39,8 +41,9 @@ product experience.
 
 Create the AntennaBench GitHub organization, transfer the repository, establish
 the shared organization foundation, and complete the post-transfer security
-audit. Then use the current code to produce one signed, notarized, stapled
-private draft candidate and independently verify its downloaded bytes,
+audit. Then use the current code to produce one private draft candidate with
+signed, notarized, stapled macOS archives and the unsigned Windows installer,
+and independently verify its downloaded bytes,
 installation, launch, report, and export behavior.
 
 This phase proves the release machinery. It does not publish or promote the

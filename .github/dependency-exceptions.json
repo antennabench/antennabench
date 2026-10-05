@@ -10,13 +10,13 @@
         "name": "glib",
         "version": "0.18.5"
       },
-      "reachability": "The crate is Linux-only Tauri GTK infrastructure; AntennaBench has no direct VariantStr or VariantStrIter calls, but framework reachability cannot be excluded.",
-      "rationale": "The fix requires glib 0.20 or newer while Tauri's current GTK dependency remains on the incompatible glib 0.18 line.",
-      "mitigation": "Avoid the affected iterator API, retain Linux CI coverage, and track a Tauri or GTK upgrade in issue 83 before the exception expires.",
+      "reachability": "Rechecked on 2026-10-04: glib 0.18.5 is inherited by the Linux Tauri GTK stack and absent from the macOS and Windows release dependency graphs. AntennaBench has no direct VariantStr or VariantStrIter calls, but framework reachability cannot be excluded.",
+      "rationale": "The 2026-10-04 review confirmed RustSec still requires glib >=0.20.0. glib 0.18.5 remains the newest published 0.18 release, and current Tauri 2.12.1 still requires GTK 0.18. A supported compatible upgrade or published backport is unavailable. A local glib backport would require separately maintained vendored source and source-aware security review rather than a supported dependency upgrade.",
+      "mitigation": "Avoid the affected iterator API, retain Linux CI coverage, and track a supported Tauri or GTK upgrade in issue 83. Recheck upstream before 2026-11-03; the renewed exception remains scoped to glib 0.18.5 and does not waive any other advisory or release gate.",
       "owner": "@rwjblue",
       "issue": "https://github.com/antennabench/antennabench/issues/83",
-      "approved_on": "2026-07-14",
-      "expires_on": "2026-08-13",
+      "approved_on": "2026-10-04",
+      "expires_on": "2026-11-03",
       "enforcement_reference": "RUSTSEC-2024-0429"
     },
     {

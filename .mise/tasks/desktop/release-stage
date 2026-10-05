@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # -*- mode: sh; sh-shell: bash; -*-
-#MISE description="Verify and stage an existing native macOS application for release assembly"
-#USAGE arg "<app>" help="Path to AntennaBench.app"
+#MISE description="Verify and stage a native macOS app or Windows installer for release assembly"
+#USAGE arg "<app>" help="Path to AntennaBench.app or the Windows setup.exe installer"
 #USAGE arg "<target>" help="Native Rust target" {
-#USAGE   choices "aarch64-apple-darwin" "x86_64-apple-darwin"
+#USAGE   choices "aarch64-apple-darwin" "x86_64-apple-darwin" "x86_64-pc-windows-msvc"
 #USAGE }
-#USAGE flag "--trust-mode <mode>" default="local" help="local or release"
+#USAGE flag "--trust-mode <mode>" default="local" help="local or release (signed/notarized Macs, verified unsigned Windows)"
 #USAGE flag "--tag <tag>" help="Optional exact vMAJOR.MINOR.PATCH release tag"
 #USAGE flag "--runner-label <runner>" default="local" help="Expected native runner label"
 

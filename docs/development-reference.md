@@ -436,14 +436,20 @@ declare a supported release platform or architecture.
 
 The separate read-only desktop release artifact probe runs only when its
 inputs change, on demand, and after matching changes reach `main`. It uses the
-selected native `macos-15` arm64 and `macos-15-intel` runners, runs the portable
-and unattended checks, and retains each verified non-publishable artifact input
+selected native `macos-15` arm64, `macos-15-intel`, and `windows-2025` x64
+runners, runs the portable and unattended checks, and retains each verified
+non-publishable artifact input
 for seven days. It cannot read release credentials or mutate tags and releases.
 
 ## Desktop Development
 
-The currently supported desktop development platform is macOS. Install Xcode
-Command Line Tools (or Xcode) before building Tauri, then let Mise install the
+macOS is the established interactive desktop development platform. Windows 11
+x64 now has a native build and NSIS release path; public support still requires
+the clean-system interactive evidence in [Desktop Releases](releasing.md).
+Windows contributors need the MSVC C++ build tools, WebView2, and Git Bash as
+described in the [Development Guide](development.md#build-on-windows).
+On macOS, install Xcode Command Line Tools (or Xcode) before building Tauri, then
+let Mise install the
 pinned Rust, Node, and Tauri CLI versions:
 
 ```bash
@@ -557,10 +563,12 @@ runtime dependency or webview capability.
 
 ## Desktop Release Artifact Construction
 
-The initial release contract supports macOS 15 and later with separate native
-Apple-silicon and Intel application archives. Xcode Command Line Tools and the
-Mise-managed tools listed above are the only local prerequisites for the
-non-secret build. Each architecture must be built on its matching native host:
+The release contract supports macOS 15 and later with separate native
+Apple-silicon and Intel ZIP archives, plus a per-user NSIS installer for Windows
+11 x64. [Decision 0030](decisions/0030-ship-unsigned-windows-x64-installers.md)
+adds intentionally unsigned Windows distribution while retaining every macOS
+signing and notarization requirement. Each target must be built on its matching
+native host with the system prerequisites and Mise-managed tools above:
 
 ```bash
 # Apple silicon on macos-15 or a local arm64 Mac
@@ -568,27 +576,31 @@ mise run desktop:release-bundle -- aarch64-apple-darwin
 
 # Intel on macos-15-intel or a local x86_64 Mac
 mise run desktop:release-bundle -- x86_64-apple-darwin
+
+# Windows x64 on windows-2025 or a local Windows 11 x64 host, in Git Bash
+mise run desktop:release-bundle -- x86_64-pc-windows-msvc
 ```
 
 When `--tag` is omitted, the non-publishable probe derives the deterministic
 `v<workspace-version>` tag needed to exercise the fail-closed official build
 identity checks. An explicit `--tag vMAJOR.MINOR.PATCH` fails unless it exactly
 matches the Cargo workspace version, and the real tag workflow supplies and
-checks `github.ref_name`. CI also passes `--runner-label macos-15` or
-`--runner-label macos-15-intel`; a mismatched native machine, runner, target,
+checks `github.ref_name`. CI also passes the exact runner label `macos-15`,
+`macos-15-intel`, or `windows-2025`; a mismatched native machine, runner, target,
 version, or tag fails before staging. Probe output remains unsigned and
 non-publishable even though it exercises the same official build identity.
 
 The command first runs the single-toolchain check and the fresh non-secret
 `release-preflight`. It installs the explicit Rust target, then invokes Tauri
-in release mode with only `--bundles app`, `--ci`, and `--no-sign`. The build
-has a 30-minute timeout and never invokes the DMG bundler or Finder/AppleScript.
-Tauri inherits its version from the Cargo workspace, while its configuration
-pins the only bundle target to `app` and the minimum system version to macOS
-15.0.
+in release mode with `--ci` and `--no-sign`. macOS uses only `--bundles app`;
+Windows uses only `--bundles nsis` and its platform configuration. The build
+has a 30-minute timeout. Tauri inherits its version from the Cargo workspace.
+The macOS configuration sets minimum system version 15.0 and avoids the DMG
+bundler; the Windows configuration selects per-user installation and the offline
+Evergreen WebView2 Runtime installer.
 
-Before staging, the task verifies all of the following against the built app
-and again after a `ditto` ZIP extraction:
+macOS staging verifies the following against the built app and again after a
+`ditto` ZIP extraction:
 
 - the product name, bundle identifier, short version, build version, and
   minimum-system metadata;
@@ -598,7 +610,17 @@ and again after a `ditto` ZIP extraction:
   classification appropriate to the selected trust mode; and
 - the archive byte size and SHA-256 digest.
 
-The normal build deliberately skips Developer ID signing. On Apple silicon the
+Windows staging verifies the exact installer name and digest, silently installs
+into an isolated per-user destination, checks the installed executable's x64 PE
+architecture and product/version metadata, requires unsigned Authenticode state
+on both installer and executable, verifies the exact notices beside the
+executable, proves a native window and WebView2 process start, and silently
+uninstalls. Use a clean Windows test user: the verifier refuses an existing
+AntennaBench installation, running process, or application-data directory. This
+automation proves packaging and basic launch; it does not replace clean Windows
+11 interactive open/report/export/reopen, upgrade, and uninstall evidence.
+
+The normal build deliberately skips signing. On Apple silicon the
 Mach-O may retain an ad-hoc linker signature, but the target manifest records
 `publishable: false`, the directory contains `NON_PUBLISHABLE.txt`, and output
 is isolated under:
@@ -610,38 +632,56 @@ target/desktop-release/non-publishable/<target>/
 └── NON_PUBLISHABLE.txt
 ```
 
+The Windows target directory has the same manifest and marker, with
+`AntennaBench-<version>-x86_64-pc-windows-msvc-setup.exe` as its install artifact.
+
 Staging uses a temporary sibling directory. The stable directory appears only
-after build, archive extraction, metadata verification, digest verification,
+after build, native package verification, metadata verification, digest verification,
 and exact asset-set validation all pass. A failed or interrupted attempt
 removes both stale final output and partial staging output. Everything remains
 under ignored `target/`; credentials, application bundles, archives, and
 notarization material must never be committed.
 
-After both native jobs have produced target directories, combine them with:
+After all three native jobs have produced target directories, combine them with:
 
 ```bash
 mise run desktop:release-assemble -- \
   target/desktop-release/non-publishable/aarch64-apple-darwin \
-  target/desktop-release/non-publishable/x86_64-apple-darwin
+  target/desktop-release/non-publishable/x86_64-apple-darwin \
+  target/desktop-release/non-publishable/x86_64-pc-windows-msvc
 ```
 
 That command requires exactly one artifact for each selected target, identical
 versions, tags, and source commits, and matching manifest sizes and digests. It
-atomically creates the two ZIPs,
+atomically creates the two ZIPs, the Windows installer,
 `AntennaBench-<version>-release-manifest.json`, and the bytewise-sorted
-`AntennaBench-<version>-SHA256SUMS`. The checksum file covers both archives and
-the release manifest, but not itself. The assembled local set remains under
+`AntennaBench-<version>-SHA256SUMS`. The checksum file covers all three install
+artifacts and the release manifest, but not itself. The assembled local set remains under
 `target/desktop-release/non-publishable/complete` and cannot pass
 `--require-publishable`.
 
-The protected `v*` tag workflow owns the credentialed layer. It signs,
-notarizes, and staples each `.app`, then calls `desktop:release-stage` with
-`--trust-mode release` and assemble with `--require-publishable`. Release mode
-fails unless Developer ID authority, hardened runtime, secure timestamp,
-stapled notarization, strict code-signature validation, and Gatekeeper
-assessment all pass. Only that complete output may be attached to a draft
-GitHub Release. [Desktop Releases](releasing.md) is the maintained owner and
-user runbook; the workflow never publishes a stable release.
+The `v*` tag workflow owns promotion into release staging. Protected macOS jobs
+sign, notarize, and staple each `.app`, then call `desktop:release-stage` with
+`--trust-mode release`. macOS release mode fails unless Developer ID authority,
+hardened runtime, secure timestamp, stapled notarization, strict code-signature
+validation, and Gatekeeper assessment all pass.
+
+The Windows job stages its verified installer with the same release-mode entry
+point, without credentials:
+
+```bash
+mise run desktop:release-stage -- \
+  path/to/AntennaBench-<version>-x86_64-pc-windows-msvc-setup.exe \
+  x86_64-pc-windows-msvc --trust-mode release --tag v<version>
+```
+
+Windows release mode accepts the explicitly selected unsigned policy only
+after native installation, metadata, notices, launch, and uninstall verification.
+An unsigned probe still has `publishable: false`; it cannot be passed through
+unchanged as a release artifact. Assembly with `--require-publishable` requires
+all three official target outputs. Only the complete five-file set may be
+attached to a draft GitHub Release. [Desktop Releases](releasing.md) is the
+maintained owner and user runbook; the workflow never publishes a stable release.
 
 Run the platform-independent parsing, naming, manifest, checksum, unexpected
 asset, and failure-cleanup regressions with:
@@ -653,20 +693,23 @@ mise run desktop:publication-test
 
 For troubleshooting, inspect the command's first failing invariant. A host or
 runner mismatch requires the selected native machine; an embedded metadata or
-Mach-O deployment mismatch must be fixed at the Tauri/build boundary rather
-than renamed after the fact. A missing app indicates a Tauri build failure.
-Archive verification failures leave no stable target directory. Policy or
-advisory failures must be resolved through the maintained supply-chain process;
+Mach-O deployment or Windows PE/version mismatch must be fixed at the
+Tauri/build boundary rather than renamed after the fact. A missing app or
+installer indicates a Tauri build failure. Packaging verification failures
+leave no stable target directory. Policy or advisory failures must be resolved
+through the maintained supply-chain process;
 they are not bypassed by the release task.
 
-The remaining native-picker smoke is optional release/platform verification,
-not routine regression testing. Run `mise run desktop:dev`, confirm the window
-opens, and verify only that the open and save pickers appear, cancellation
+For routine development, the focused native-picker smoke is optional. Run
+`mise run desktop:dev`, confirm the window opens, and verify only that the open
+and save pickers appear, cancellation
 returns to the app normally, and selecting the canonical fixture hands a local
 directory path to the app. The unattended test owns open → report → export →
-reopen semantics, error behavior, preservation assertions, and diagnostics; do
-not repeat those checks with coordinate-driven automation. Stop the development
-process with Control-C and use `jj status` to confirm the fixture was unchanged.
+reopen semantics, error behavior, preservation assertions, and diagnostics.
+Public-release promotion separately requires the owner to prove clean-system
+interactive behavior on each supported platform as described in the release
+runbook. Stop the development process with Control-C and use `jj status` to
+confirm the fixture was unchanged.
 
 The main webview capability allowlists focused setup, conductor, receiver,
 session-open, manual WSPR.live/RBN import, checkpoint-export,

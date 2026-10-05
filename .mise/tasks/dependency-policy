@@ -5,6 +5,6 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo_root"
 
-node --test scripts/validate-dependency-exceptions.test.mjs
+node --test scripts/validate-dependency-exceptions.test.mjs scripts/run-cargo-deny.test.mjs
 node scripts/validate-dependency-exceptions.mjs
-cargo deny --locked check bans licenses sources
+node scripts/run-cargo-deny.mjs --locked check bans licenses sources

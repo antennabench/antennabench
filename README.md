@@ -18,7 +18,7 @@ Antenna tests are easy to start and surprisingly easy to overstate. Propagation
 changes, receiver populations shift, switches happen late, and missing spots can
 look like measurements when they are not.
 
-AntennaBench is a local-first macOS desktop app that turns an antenna comparison
+AntennaBench is a local-first desktop app that turns an antenna comparison
 into a guided experiment. It helps you plan an interleaved WSPR run, prompts each
 antenna change, collects attributed observations, and builds a report that shows
 both the result and the limits of the evidence.
@@ -53,8 +53,14 @@ review remain the complete defaults.
 
 > [!IMPORTANT]
 > AntennaBench is an early preview under active development. There is not yet a
-> signed end-user download. The current desktop app is run from source on macOS
+> end-user download. The current desktop app is run from source on macOS
 > 15 or later.
+
+Release infrastructure targets macOS 15 or later on Apple silicon and Intel,
+plus Windows 11 x64. Windows will use an unsigned per-user installer with the
+WebView2 Runtime included; clean-system installation and interactive validation
+remain required before public promotion. See the
+[release runbook](docs/releasing.md) for the artifact and trust contract.
 
 The local workflow can create and reopen sessions, conduct manual WSPR
 comparisons, collect optional WSJT-X and WSPR.live evidence, import bounded WSPR

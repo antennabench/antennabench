@@ -4,6 +4,11 @@ Date: 2026-07-13
 
 Toolchain policy amended by
 [Decision 0014](0014-use-one-pinned-rust-toolchain.md).
+Platform and asset policy amended by
+[Decision 0030](0030-ship-unsigned-windows-x64-installers.md), which adds an
+unsigned Windows 11 x64 installer without changing the macOS trust requirements.
+The original decision below is retained as historical context; the current
+operating contract is maintained in [Desktop Releases](../releasing.md).
 
 ## Decision
 

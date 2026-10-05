@@ -3,6 +3,7 @@ name: Desktop release artifact probe
 on:
   pull_request:
     paths:
+      - ".gitattributes"
       - "Cargo.lock"
       - "Cargo.toml"
       - "crates/**"
@@ -14,6 +15,8 @@ on:
       - "deny.toml"
       - "scripts/desktop-release.mjs"
       - "scripts/desktop-release.test.mjs"
+      - "scripts/desktop-windows*"
+      - "scripts/run-cargo-deny*"
       - "scripts/validate-dependency-exceptions*"
       - "scripts/validate-supply-chain*"
       - ".github/dependency-exceptions.json"
@@ -30,6 +33,7 @@ on:
     branches:
       - main
     paths:
+      - ".gitattributes"
       - "Cargo.lock"
       - "Cargo.toml"
       - "crates/**"
@@ -41,6 +45,8 @@ on:
       - "deny.toml"
       - "scripts/desktop-release.mjs"
       - "scripts/desktop-release.test.mjs"
+      - "scripts/desktop-windows*"
+      - "scripts/run-cargo-deny*"
       - "scripts/validate-dependency-exceptions*"
       - "scripts/validate-supply-chain*"
       - ".github/dependency-exceptions.json"
@@ -73,7 +79,12 @@ jobs:
             runner: macos-15
           - target: x86_64-apple-darwin
             runner: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -93,6 +104,8 @@ jobs:
 
       - name: Run portable and unattended desktop verification
         run: |
+          mise run desktop:release-test
+          mise run release-preflight
           mise run test
           mise run desktop:frontend-test
           mise run desktop:e2e

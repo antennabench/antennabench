@@ -98,10 +98,12 @@ rooted at `/`, so one reviewed update covers the complete graph. See
 
 ## Rust Dependency Policy
 
-cargo-deny 0.19.4 is an exact Mise pin. The Cargo backend is configured with
+cargo-deny 0.20.2 is an exact Mise pin. The Cargo backend is configured with
 `locked = true`: source installation uses the release lockfile, while supported
 platforms may use cargo-binstall's checksum-verified upstream release artifact.
-The installed binary must report `cargo-deny 0.19.4`.
+The installed binary must report `cargo-deny 0.20.2`. This version rejects failed
+Git fetches even when a cached advisory database is available, preserving the
+fresh-check requirement.
 
 `deny.toml` evaluates every Cargo-resolved target and enables all features. The
 baseline is:
@@ -163,12 +165,27 @@ credential. The clearly named scheduled run is visible in Actions and GitHub's
 scheduled-workflow failure notifications; the read-only job does not mutate an
 issue to manufacture a notification.
 
-The initial fresh audit has one temporary unsound exception:
+The fresh audit has one temporary unsound exception:
 RUSTSEC-2024-0429 for Linux-only `glib 0.18.5`, inherited from Tauri's GTK
 stack. The repository has no direct use of the affected iterator API, but does
 not claim it is unreachable throughout the framework. The exception is tracked
-by [#83](https://github.com/antennabench/antennabench/issues/83), expires on
-2026-08-13, and becomes a hard failure when expired or unused.
+by [#83](https://github.com/antennabench/antennabench/issues/83), was renewed on
+2026-10-04 through 2026-11-03 after owner approval and a fresh review, and
+becomes a hard failure when expired or unused.
+
+The renewal review confirmed that the
+[RustSec fix](https://rustsec.org/advisories/RUSTSEC-2024-0429.html) still
+requires `glib >=0.20.0`, while `glib 0.18.5` remains the newest published
+0.18 release. Current
+[Tauri 2.12.1](https://github.com/tauri-apps/tauri/blob/tauri-v2.12.1/crates/tauri/Cargo.toml)
+still requires GTK 0.18, so a supported compatible dependency upgrade is
+unavailable. Forcing a different glib line would not replace the inherited
+GTK types; a local fork would introduce separately maintained source. The
+locked target graphs include glib only in the Linux desktop stack, with no
+glib dependency in the macOS or Windows release graphs. Direct application
+calls to `VariantStr` and `VariantStrIter` remain absent; framework
+reachability is still not ruled out. Retain Linux CI and recheck issue 83
+before the renewed expiry rather than treating the advisory as fixed.
 
 ## Focused Lockfile Updates
 

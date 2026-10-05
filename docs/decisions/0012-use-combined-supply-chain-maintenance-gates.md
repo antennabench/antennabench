@@ -198,9 +198,11 @@ pull request can reach those jobs.
 ### Tool And Cadence
 
 The repository pins one exact cargo-deny release in Mise and installs it from
-the release's published lockfile or verified artifact. Version 0.19.4 was
-current during this decision; a newer version is acceptable only as a focused
-reviewed update with compatibility evidence.
+the release's published lockfile or verified artifact. Version 0.20.2 rejects
+failed advisory database Git fetches instead of accepting a cached database
+after a fetch failure. It supports the repository's Rust 1.96.1 toolchain; a
+newer version is acceptable only as a focused reviewed update with
+compatibility evidence.
 
 The policy evaluates all targets and features represented in Cargo.lock.
 Deterministic license, source, bans, wildcard, and duplicate checks run on

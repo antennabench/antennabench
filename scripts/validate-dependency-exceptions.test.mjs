@@ -40,8 +40,27 @@ function validate(exception, options = {}) {
   );
 }
 
-test("accepts a complete in-scope time-bounded exception", () => {
-  assert.deepEqual(validate(validException()), []);
+test("validates exact locked exception scope with LF and CRLF", () => {
+  for (const newline of ["\n", "\r\n"]) {
+    const options = {
+      today: TODAY,
+      lockText: LOCK.replaceAll("\n", newline),
+      denyText: DENY.replaceAll("\n", newline),
+    };
+    assert.deepEqual(validate(validException(), options), []);
+    assert.ok(
+      validate(validException({ package: { name: "example-crate", version: "1.2.4" } }), options)
+        .some((error) => /Cargo.lock/.test(error)),
+    );
+    assert.ok(
+      validate(validException({ expires_on: "2026-07-13" }), options)
+        .some((error) => /expired/.test(error)),
+    );
+    assert.ok(
+      validateExceptions({ version: 1, exceptions: [] }, options)
+        .some((error) => /no tracked exception/.test(error)),
+    );
+  }
 });
 
 test("rejects expired, overlong, and future exception windows", () => {
@@ -89,27 +108,31 @@ test("rejects missing review evidence and non-exact version scope", () => {
 });
 
 test("pins the complete advisory, source, wildcard, duplicate, and license matrix", () => {
-  const policy = fs.readFileSync("deny.toml", "utf8");
-  assert.deepEqual(validateDenyPolicyText(policy), []);
-  for (const mutation of [
-    ["unsound = \"all\"", "unsound = \"workspace\""],
-    ["unmaintained = \"workspace\"", "unmaintained = \"none\""],
-    ["unknown-git = \"deny\"", "unknown-git = \"warn\""],
-    ["multiple-versions = \"warn\"", "multiple-versions = \"allow\""],
-    ["\"MPL-2.0\"", "\"GPL-3.0\""],
-  ]) {
-    assert.ok(validateDenyPolicyText(policy.replace(...mutation)).length > 0, mutation[0]);
+  const policy = fs.readFileSync("deny.toml", "utf8").replaceAll("\r\n", "\n");
+  for (const newline of ["\n", "\r\n"]) {
+    const input = policy.replaceAll("\n", newline);
+    assert.deepEqual(validateDenyPolicyText(input), []);
+    for (const mutation of [
+      ["unsound = \"all\"", "unsound = \"workspace\""],
+      ["unmaintained = \"workspace\"", "unmaintained = \"none\""],
+      ["unused-ignored-advisory = \"deny\"", "unused-ignored-advisory = \"warn\""],
+      ["unknown-git = \"deny\"", "unknown-git = \"warn\""],
+      ["multiple-versions = \"warn\"", "multiple-versions = \"allow\""],
+      ["\"MPL-2.0\"", "\"GPL-3.0\""],
+    ]) {
+      assert.ok(validateDenyPolicyText(input.replace(...mutation)).length > 0, mutation[0]);
+    }
+    assert.ok(
+      validateDenyPolicyText(input.replace('  "Zlib",', `  "Zlib",${newline}  "GPL-3.0",`)).some(
+        (error) => /unreviewed global license/.test(error),
+      ),
+    );
   }
-  assert.ok(
-    validateDenyPolicyText(policy.replace('  "Zlib",', '  "Zlib",\n  "GPL-3.0",')).some(
-      (error) => /unreviewed global license/.test(error),
-    ),
-  );
 });
 
 test("fresh advisory and release workflow failures cannot be suppressed", () => {
   const valid = {
-    advisoryTask: "set -euo pipefail\ncargo deny --locked check advisories\n",
+    advisoryTask: "set -euo pipefail\nnode scripts/run-cargo-deny.mjs --locked check advisories\n",
     releaseTask:
       "mise run supply-chain\nmise run dependency-policy\nmise run advisory-fresh\n",
     workflow: `on:
@@ -135,35 +158,44 @@ jobs:
         run: mise run release-preflight
 `,
   };
-  assert.deepEqual(validateFreshGate(valid), []);
-  assert.ok(
-    validateFreshGate({
-      ...valid,
-      advisoryTask: "set -euo pipefail\ncargo deny --locked check advisories || true\n",
-    }).length > 0,
-  );
-  assert.ok(validateFreshGate({ ...valid, workflow: valid.workflow.replace("  schedule:\n", "") }).length > 0);
-  assert.ok(
-    validateFreshGate({ ...valid, releaseTask: valid.releaseTask.replace("mise run advisory-fresh\n", "") })
-      .length > 0,
-  );
-  assert.ok(
-    validateFreshGate({
-      ...valid,
-      workflow: valid.workflow.replace(
-        "  pull_request:\n",
-        '  pull_request:\n    paths:\n      - "Cargo.lock"\n',
-      ),
-    }).some((error) => /must not be path-filtered/.test(error)),
-  );
-  assert.ok(
-    validateFreshGate({
-      ...valid,
-      workflow: valid.workflow.replace('git diff --quiet "$BASE_SHA" "$HEAD_SHA"', "git diff --name-only"),
-    }).some((error) => /fail closed/.test(error)),
-  );
+  for (const newline of ["\n", "\r\n"]) {
+    const validateInput = (input) => validateFreshGate(
+      Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value.replaceAll("\n", newline)])),
+    );
+    assert.deepEqual(validateInput(valid), []);
+    for (const command of [
+      "cargo deny --locked check advisories",
+      "cargo-deny --locked check advisories",
+      "node scripts/run-cargo-deny.mjs check advisories",
+      "node scripts/run-cargo-deny.mjs --locked --offline check advisories",
+      "node scripts/run-cargo-deny.mjs --locked check advisories --disable-fetch",
+      "node scripts/run-cargo-deny.mjs --locked check advisories || true",
+    ]) {
+      assert.ok(validateInput({ ...valid, advisoryTask: `set -euo pipefail\n${command}\n` }).length > 0, command);
+    }
+    assert.ok(validateInput({ ...valid, workflow: valid.workflow.replace("  schedule:\n", "") }).length > 0);
+    assert.ok(
+      validateInput({ ...valid, releaseTask: valid.releaseTask.replace("mise run advisory-fresh\n", "") })
+        .length > 0,
+    );
+    assert.ok(
+      validateInput({
+        ...valid,
+        workflow: valid.workflow.replace(
+          "  pull_request:\n",
+          '  pull_request:\n    paths:\n      - "Cargo.lock"\n',
+        ),
+      }).some((error) => /must not be path-filtered/.test(error)),
+    );
+    assert.ok(
+      validateInput({
+        ...valid,
+        workflow: valid.workflow.replace('git diff --quiet "$BASE_SHA" "$HEAD_SHA"', "git diff --name-only"),
+      }).some((error) => /fail closed/.test(error)),
+    );
+  }
 });
 
 test("the repository has no invalid or expired exceptions", () => {
-  assert.deepEqual(validateRepository(process.cwd(), TODAY), []);
+  assert.deepEqual(validateRepository(process.cwd(), new Date()), []);
 });
