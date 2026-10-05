@@ -42,6 +42,15 @@ The static validation checks expected pages and assets, internal links, canonica
 and social metadata, security headers, the site-only Wrangler boundary, exact
 Astro ownership, and the absence of React and external runtime resources.
 
+Ordinary builds and CI render a source-preview download page without contacting
+GitHub. Production `deploy:site` instead runs `site:build:published`, which queries
+the public latest-release API at build time. Download buttons appear only for a
+published, immutable, stable release with the exact five canonical assets: both
+Mac archives, the Windows installer, release manifest, and SHA256 checksums. A
+repository with no public stable release keeps the unavailable state; API errors
+or incomplete metadata fail deployment instead of replacing the current site.
+The deployed pages remain static, with no browser-side release lookup.
+
 ### One-Time Owner Setup
 
 Complete these steps before merging the first production-deploying change:
@@ -67,17 +76,33 @@ Cloudflare's maintained references are
 
 ### Production Deployment And Rollback
 
-`.github/workflows/hosted-site-deploy.yml` deploys pushes to `main` through the
-protected `production` environment. Pull requests never receive Cloudflare
-credentials. The job reruns the locked hosted validation before invoking the
-exact-pinned workspace Wrangler.
+`.github/workflows/hosted-site-deploy.yml` deploys pushes to `main` and refreshes
+downloads on `release: published`, through the protected `production`
+environment. Release-triggered deployment uses the current reviewed `main`
+source, rather than the tagged desktop source. Pull requests never receive
+Cloudflare credentials. The job checks the actual checkout against `origin/main`
+and reruns locked hosted validation before invoking the exact-pinned workspace
+Wrangler.
 
 To redeploy or roll back, open **Deploy public project site** in GitHub Actions,
 choose **Run workflow**, and enter the full commit SHA to deploy. The job rejects
 any revision that is not already reachable from `origin/main`; a rollback is a
 redeployment of a reviewed historical source revision, not an unreviewed bundle
-or dashboard edit. Record the selected SHA and deployment result in the release
-or incident notes.
+or dashboard edit. Revisions with public-release discovery refresh download
+availability on every deployment. Rolling back to older website source can
+restore its earlier availability copy and hide download buttons; it never
+changes the public desktop release. Record the selected SHA and deployment
+result in the release or incident notes.
+
+For a release whose tag predates the `release: published` workflow trigger (as
+with the first `v0.1.0` tag), or if promotion uses a workflow token that does not
+trigger another workflow, dispatch the site workflow from `main` after
+publication. Select the full reviewed website commit SHA as `source_revision`.
+This is also the fallback if the automatic deployment is missed. Confirm
+`/download/` shows the published version and links to all three platform builds,
+the checksums, and the manifest before announcing availability. Windows copy
+must disclose the unsigned publisher and Windows security-policy limits; Mac
+copy must retain Developer ID signing and Apple notarization.
 
 Before the first public announcement—and after a domain, header, or deployment
 change—verify:
