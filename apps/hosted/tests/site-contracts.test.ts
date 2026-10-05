@@ -81,9 +81,30 @@ describe("public project site contracts", () => {
     expect(workflow).toContain("environment:");
     expect(workflow).toContain("name: production");
     expect(workflow).toContain("git merge-base --is-ancestor");
+    expect(workflow).toContain('checked_out_source=$(git rev-parse HEAD)');
+    expect(workflow).toContain('git merge-base --is-ancestor "$checked_out_source" origin/main');
+    expect(workflow).toContain("types: [published]");
+    expect(workflow).toContain("github.event_name == 'release' && 'refs/heads/main'");
     expect(workflow).toContain("secrets.CLOUDFLARE_ACCOUNT_ID");
     expect(workflow).toContain("secrets.CLOUDFLARE_API_TOKEN");
     expect(workflow).not.toContain("pull_request:");
+  });
+
+  it("keeps public download discovery in deployment builds only", () => {
+    const packageJson = JSON.parse(read("../package.json"));
+    expect(packageJson.scripts["site:build"]).not.toContain("--published-downloads");
+    expect(packageJson.scripts["site:build:published"]).toContain("--published-downloads");
+    expect(packageJson.scripts["deploy:site"]).toContain("npm run site:build:published");
+    const builder = read("../../../scripts/run-hosted-astro.mjs");
+    expect(builder).toContain("delete buildEnvironment[releaseEnvironmentKey]");
+    const page = read("../src/pages/download.astro");
+    expect(page).toContain("Desktop downloads are not available yet.");
+    expect(page).toContain("intentionally unsigned");
+    expect(page).toContain("SmartScreen");
+    expect(page).toContain("Smart App Control");
+    expect(page).toContain("WSJT-X");
+    expect(page).toContain("readPublishedDesktopRelease()");
+    expect(read("../src/pages/sitemap.xml.ts")).toContain('"/download/"');
   });
 
   it("publishes the WSPR and RBN choice as user-facing site guidance", () => {

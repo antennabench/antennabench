@@ -6,6 +6,7 @@ import {
 } from "node:fs";
 import { dirname, extname, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { desktopReleaseFiles } from "../apps/hosted/src/lib/desktop-release.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const hostedRoot = join(repositoryRoot, "apps", "hosted");
@@ -107,6 +108,7 @@ for (const expected of [
   "404.html",
   "how-it-works/index.html",
   "why-wspr/index.html",
+  "download/index.html",
   "sample-report/index.html",
   "sample-report/summary/index.html",
   "sample-report/compact/index.html",
@@ -188,16 +190,41 @@ for (const boundary of [
   invariant(home.includes(boundary), `Home page is missing its product boundary: ${boundary}`);
 }
 invariant(home.includes('href="/why-wspr/"'), "Home page is missing the WSPR and RBN explanation link");
+invariant(home.includes('href="/download/"'), "Home page is missing desktop download access");
+
+const downloadPage = readFileSync(join(outputRoot, "download", "index.html"), "utf8");
+const desktopReleaseTag = downloadPage.match(/data-desktop-release="([^"]+)"/)?.[1];
+invariant(desktopReleaseTag !== undefined, "Download page is missing its release availability state");
+for (const guidance of ["WSJT-X", "Windows 11", "intentionally unsigned", "SmartScreen", "macOS 15", "Developer ID"]) {
+  invariant(downloadPage.includes(guidance), `Download page is missing installation guidance: ${guidance}`);
+}
+if (desktopReleaseTag === "unavailable") {
+  invariant(downloadPage.includes("Desktop downloads are not available yet."), "Unavailable release must retain truthful preview messaging");
+  invariant(!downloadPage.includes("/releases/download/"), "Unavailable release must not expose installer download links");
+  invariant(!home.includes(">Download AntennaBench</a>"), "Unavailable release must not advertise a download action");
+} else {
+  const release = desktopReleaseFiles(desktopReleaseTag);
+  for (const url of [...release.downloads.map(({ url }) => url), release.checksumsUrl, release.manifestUrl]) {
+    invariant(downloadPage.includes(`href="${url}"`), `Download page is missing a published release asset: ${url}`);
+  }
+  invariant(!downloadPage.includes("Desktop downloads are not available yet."), "Published release must not retain unavailable messaging");
+  invariant(home.includes(">Download AntennaBench</a>"), "Published release must expose the home download action");
+  invariant(home.includes(`Version ${release.version} is available`), "Home and download page must advertise the same release");
+}
 
 const sitemap = readFileSync(join(outputRoot, "sitemap.xml"), "utf8");
+const sitemapUrls = new Set(
+  [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]),
+);
 invariant(
-  sitemap.includes("https://antennabench.com/sample-report/summary/") &&
-    sitemap.includes("https://antennabench.com/sample-report/") &&
-    sitemap.includes("https://antennabench.com/sample-report/inconclusive/"),
+  sitemapUrls.has("https://antennabench.com/sample-report/summary/") &&
+    sitemapUrls.has("https://antennabench.com/download/") &&
+    sitemapUrls.has("https://antennabench.com/sample-report/") &&
+    sitemapUrls.has("https://antennabench.com/sample-report/inconclusive/"),
   "Sitemap is missing a public sample route",
 );
 invariant(
-  !sitemap.includes("https://antennabench.com/sample-report/compact/"),
+  !sitemapUrls.has("https://antennabench.com/sample-report/compact/"),
   "Summary compatibility route must not appear in the sitemap",
 );
 

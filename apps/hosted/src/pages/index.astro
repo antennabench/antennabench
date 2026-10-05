@@ -2,8 +2,10 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ReportPreview from "../components/ReportPreview.astro";
 import WorkflowSteps from "../components/WorkflowSteps.astro";
+import { readPublishedDesktopRelease } from "../lib/desktop-release.mjs";
 
-const description = "AntennaBench is a local-first macOS app for repeatable WSPR antenna comparisons, with guided experiments and evidence-first reports.";
+const release = readPublishedDesktopRelease();
+const description = "AntennaBench is a local-first app for repeatable WSPR antenna comparisons on Windows and macOS, with guided experiments and evidence-first reports.";
 ---
 
 <BaseLayout
@@ -15,7 +17,7 @@ const description = "AntennaBench is a local-first macOS app for repeatable WSPR
   <section class="hero section-pad">
     <div class="shell hero-grid">
       <div class="hero-copy">
-        <p class="status-pill"><span></span> Early preview · run from source</p>
+        <p class="status-pill"><span></span> Early preview · {release === null ? "run from source" : "Windows and macOS"}</p>
         <h1>Better antenna comparisons. <em>Evidence included.</em></h1>
         <p class="hero-lede">
           Propagation changes. Receivers come and go. Switches happen late.
@@ -23,8 +25,9 @@ const description = "AntennaBench is a local-first macOS app for repeatable WSPR
           keeps the limits visible beside the result.
         </p>
         <div class="button-row">
-          <a class="button button-primary" href="/sample-report/summary/">Read the Summary</a>
-          <a class="button button-secondary" href="/how-it-works/">See how it works</a>
+          {release !== null && <a class="button button-primary" href="/download/">Download AntennaBench</a>}
+          <a class={release === null ? "button button-primary" : "button button-secondary"} href="/sample-report/summary/">Read the Summary</a>
+          <a class="button button-secondary" href={release === null ? "/download/" : "/how-it-works/"}>{release === null ? "Desktop availability" : "See how it works"}</a>
         </div>
         <ul class="trust-list" aria-label="Product boundaries">
           <li>Local-first</li>
@@ -168,16 +171,24 @@ const description = "AntennaBench is a local-first macOS app for repeatable WSPR
     <div class="shell availability-grid">
       <div>
         <p class="eyebrow">Current availability</p>
-        <h2 id="availability-title">An early preview for contributors and evaluators</h2>
+        <h2 id="availability-title">{release === null ? "An early preview for contributors and evaluators" : "An early preview for Windows and Mac"}</h2>
       </div>
       <div>
-        <p>
-          AntennaBench currently runs from source on macOS 15 or later. The local workflow
-          can conduct manual WSPR comparisons and export reports and verified bundles.
-          There is not yet a signed end-user download, hosted report publishing, account,
-          or automatic antenna conclusion.
-        </p>
-        <a class="button button-light" href="https://github.com/antennabench/antennabench">View the project on GitHub <span aria-hidden="true">↗</span></a>
+        {release === null ? (
+          <p>
+            Desktop downloads are being prepared for Windows 11, 64-bit, and macOS
+            15 or later. Contributors can run the app from source. The local workflow
+            conducts manual WSPR comparisons with WSJT-X and exports reports and verified bundles.
+          </p>
+        ) : (
+          <p>
+            Version {release.version} is available for Windows 11, 64-bit, and macOS
+            15 or later, with separate Apple silicon and Intel Mac builds. Conduct
+            manual WSPR comparisons with WSJT-X, then export reports and verified bundles.
+          </p>
+        )}
+        <p>This preview does not include hosted report publishing or automatic antenna conclusions.</p>
+        <a class="button button-light" href="/download/">{release === null ? "See desktop availability" : "Choose your download"} <span aria-hidden="true">→</span></a>
       </div>
     </div>
   </section>

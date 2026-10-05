@@ -2,12 +2,14 @@
 # -*- mode: sh; sh-shell: bash; -*-
 #MISE description="Serial cargo lane for ci: check, desktop e2e, report browser"
 #MISE hide=true
+#MISE depends=["desktop:frontend-coverage"]
 
 set -euo pipefail
 
 # Cargo invocations serialize on the target-directory build lock, so running
 # them as one ordered lane avoids minutes of silent lock waiting while the
-# node-side ci tasks run in parallel.
+# other node-side ci tasks run in parallel. Frontend coverage finishes first so
+# cold Rust compilation cannot starve its DOM composition tests.
 mise run check
 mise run desktop:e2e
 mise run desktop:report-style-check

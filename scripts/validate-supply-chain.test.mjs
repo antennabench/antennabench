@@ -232,11 +232,13 @@ jobs:
   }
 });
 
-test("hosted site deployment pins reviewed main source and protected credentials", () => {
+test("hosted site deployment verifies selected main history and refreshes published downloads", () => {
   const valid = `name: site
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       source_revision:
@@ -247,8 +249,18 @@ jobs:
   deploy:
     environment:
       name: production
+    env:
+      SOURCE_REVISION: \${{ github.event_name == 'workflow_dispatch' && inputs.source_revision || github.event_name == 'release' && 'refs/heads/main' || github.sha }}
     steps:
-      - run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: actions/checkout@${SHA} # v7.0.0
+        with:
+          ref: \${{ env.SOURCE_REVISION }}
+      - run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && ! "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            exit 1
+          fi
+          checked_out_source=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$checked_out_source" origin/main
       - run: mise run hosted:test
       - name: Deploy static site
         run: npm run deploy:site --workspace @antennabench/hosted
@@ -261,6 +273,13 @@ jobs:
     assert.ok(validate(valid.replace("branches: [main]", "branches: [feature]")).length);
     assert.ok(validate(valid.replace("  push:\n", "  pull_request:\n  push:\n")).length);
     assert.ok(validate(valid.replace("origin/main", "HEAD^")).length);
+    assert.ok(validate(valid.replace("$checked_out_source\" origin/main", "$GITHUB_SHA\" origin/main")).length);
+    assert.ok(validate(valid.replace("git rev-parse HEAD", "git rev-parse origin/main")).length);
+    assert.ok(validate(valid.replace("types: [published]", "types: [created]")).length);
+    assert.ok(validate(valid.replace("'refs/heads/main'", "github.sha")).length);
+    assert.ok(validate(valid.replace("env.SOURCE_REVISION", "github.sha")).length);
+    assert.ok(validate(valid.replace("^[0-9a-f]{40}$", "^[0-9a-f]{7}$")).length);
+    assert.ok(validate(valid.replace('if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch"', 'if [[ "$GITHUB_EVENT_NAME" == "push"')).length);
     assert.ok(validate(valid.replace("- name: Deploy static site", "- run: echo ${{ secrets.CLOUDFLARE_API_TOKEN }}\n      - name: Deploy static site")).length);
   }
 });

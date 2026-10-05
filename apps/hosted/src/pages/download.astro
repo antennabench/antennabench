@@ -1,0 +1,87 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { readPublishedDesktopRelease } from "../lib/desktop-release.mjs";
+
+const release = readPublishedDesktopRelease();
+const description = "Get AntennaBench for Windows 11 or macOS 15, with separate Apple silicon and Intel Mac builds, installation guidance, and release checksums.";
+---
+
+<BaseLayout title="Download AntennaBench" description={description} canonicalPath="/download/">
+  <section class="page-hero section-pad" data-desktop-release={release?.tag ?? "unavailable"}>
+    <div class="shell narrow-shell">
+      <p class="eyebrow">Download AntennaBench</p>
+      <h1>Your experiment. Your evidence. On your computer.</h1>
+      <p>
+        AntennaBench is an early preview for manual WSPR comparisons. Use WSJT-X
+        for WSPR transmission and decoding, then keep your session, reports,
+        and exports locally. No account is required.
+      </p>
+      {release === null ? (
+        <div class="download-pending explain-card">
+          <strong>Desktop downloads are not available yet.</strong>
+          <p>
+            Windows 11 and macOS installers are being prepared. Contributors can
+            run the app from source using the development guide.
+          </p>
+          <a class="text-link" href="https://github.com/antennabench/antennabench/blob/main/docs/development.md">Run from source <span aria-hidden="true">↗</span></a>
+        </div>
+      ) : (
+        <p class="release-meta">
+          Version {release.version} · <a href={release.url}>Release notes</a>
+        </p>
+      )}
+    </div>
+  </section>
+
+  {release !== null && (
+    <section class="section-pad download-section" aria-labelledby="choose-download-title">
+      <div class="shell">
+        <h2 id="choose-download-title" class="visually-hidden">Choose your computer</h2>
+        <div class="download-grid">
+          {release.downloads.map((download) => (
+            <article class="download-card">
+              <h3>{download.title}</h3>
+              <p>{download.requirements}</p>
+              <p class="download-format">{download.format}</p>
+              <a class="button button-primary" href={download.url}>Download for {download.title}</a>
+            </article>
+          ))}
+        </div>
+        <p class="fine-print download-verification">
+          Compare your download with the <a href={release.checksumsUrl}>SHA256 checksums</a>.
+          The <a href={release.manifestUrl}>release manifest</a> and
+          <a href={release.url}>release notes</a> include build details and provenance
+          verification instructions. Choose Apple silicon or Intel to match
+          the processor shown in About This Mac.
+        </p>
+      </div>
+    </section>
+  )}
+
+  <section class="section-pad process-section" aria-labelledby="install-title">
+    <div class="shell process-grid">
+      <div class="process-label"><span>Install</span><strong>Choose your platform</strong></div>
+      <div class="process-copy">
+        <h2 id="install-title">A local app, with a few platform details</h2>
+        <h3>Windows 11, 64-bit</h3>
+        <p>
+          The installer installs AntennaBench for your Windows user and includes
+          the Microsoft WebView2 runtime. AntennaBench is intentionally unsigned,
+          so Windows may show an unknown publisher or a SmartScreen warning.
+          Read the release notes and verify the checksum before opening it.
+          Some managed Windows policies or Smart App Control may block unsigned apps.
+        </p>
+        <p>
+          Enter your station’s Maidenhead grid manually on Windows. Automatic
+          station location is currently available on macOS only.
+        </p>
+        <h3>macOS 15 or later</h3>
+        <p>
+          Choose the build for your Mac’s processor, unzip it, and move
+          AntennaBench.app to Applications. Published Mac apps are signed with
+          Developer ID and notarized by Apple.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

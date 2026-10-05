@@ -251,11 +251,16 @@ export function validateHostedSiteDeployWorkflowText(
   const errors = [];
   const required = [
     [/^  push:\s*\n    branches: \[main\]\s*$/m, "must deploy pushes only from main"],
+    [/^  release:\s*\n    types: \[published\]\s*$/m, "must refresh downloads after release publication"],
     [/^  workflow_dispatch:\s*$/m, "must support reviewed-revision redeployment"],
     [/^      source_revision:\s*$/m, "must require an explicit rollback source revision"],
     [/^        required: true\s*$/m, "rollback source revision must be required"],
     [/^    environment:\s*\n      name: production\s*$/m, "deploy job must use the production environment"],
-    [/git merge-base --is-ancestor "\$GITHUB_SHA" origin\/main/, "must reject source outside main history"],
+    [/github\.event_name == 'release' && 'refs\/heads\/main'/, "published releases must deploy website source from main"],
+    [/ref: \$\{\{ env\.SOURCE_REVISION \}\}/, "must check out the selected website source"],
+    [/\[\[ "\$GITHUB_EVENT_NAME" == "workflow_dispatch" && ! "\$SOURCE_REVISION" =~ \^\[0-9a-f\]\{40\}\$ \]\]/, "redeployment must require a full commit SHA"],
+    [/checked_out_source=\$\(git rev-parse HEAD\)/, "must identify the actual checked-out source"],
+    [/git merge-base --is-ancestor "\$checked_out_source" origin\/main/, "must reject source outside main history"],
     [/mise run hosted:test/, "must validate the locked hosted workspace before deploy"],
     [/npm run deploy:site --workspace @antennabench\/hosted/, "must use the hosted workspace deploy command"],
   ];

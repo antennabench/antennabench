@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-# The node-side checks run in parallel with the serial cargo lane (ci-rust).
+# Most node-side checks run in parallel with the serial cargo lane (ci-rust).
+# Frontend coverage finishes before that lane starts to avoid CPU contention.
 # desktop:frontend-coverage runs the frontend suite, so ci does not also run
 # desktop:frontend-test.
 echo "ci: all checks passed"
