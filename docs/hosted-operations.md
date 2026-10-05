@@ -50,6 +50,11 @@ Mac archives, the Windows installer, release manifest, and SHA256 checksums. A
 repository with no public stable release keeps the unavailable state; API errors
 or incomplete metadata fail deployment instead of replacing the current site.
 The deployed pages remain static, with no browser-side release lookup.
+GitHub release metadata establishes availability, not Apple signing state. Mac
+cards therefore use generic app ZIP labels. Current install guidance explicitly
+discloses the unsigned, unnotarized preview and links to app-specific Apple
+instructions; a future signing-policy switch must update that guidance in the
+same reviewed change. The site does not infer notarization from a filename.
 
 ### One-Time Owner Setup
 
@@ -102,7 +107,9 @@ This is also the fallback if the automatic deployment is missed. Confirm
 `/download/` shows the published version and links to all three platform builds,
 the checksums, and the manifest before announcing availability. Windows copy
 must disclose the unsigned publisher and Windows security-policy limits; Mac
-copy must retain Developer ID signing and Apple notarization.
+copy must disclose the current absence of Developer ID signing and Apple
+notarization, explain the app-specific **Open Anyway** option when available,
+and avoid blanket security-disable or quarantine-removal instructions.
 
 Before the first public announcement—and after a domain, header, or deployment
 change—verify:

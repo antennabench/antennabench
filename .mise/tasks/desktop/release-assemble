@@ -4,7 +4,7 @@
 #USAGE arg "<arm64>" help="Directory containing the arm64 artifact manifest"
 #USAGE arg "<intel>" help="Directory containing the Intel artifact manifest"
 #USAGE arg "<windows>" help="Directory containing the Windows x64 installer manifest"
-#USAGE flag "--require-publishable" help="Require signed/notarized Macs and verified unsigned Windows"
+#USAGE flag "--require-publishable" help="Require verified target artifacts under their explicit release signature policies"
 
 set -euo pipefail
 

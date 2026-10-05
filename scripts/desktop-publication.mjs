@@ -10,6 +10,7 @@ import {
   canonicalJson,
   readCompleteArtifactSet,
   readTargetManifest,
+  trustModeForArtifact,
   verifyCompleteArtifacts,
   withAtomicDirectory,
 } from "./desktop-release.mjs";
@@ -309,26 +310,63 @@ export function publishDraft({ directory, notesFile, root, tag }) {
   console.log(created.url);
 }
 
-export function writeReleaseNotes({ filename, root, tag }) {
+export function writeReleaseNotes({ filename, root, tag, releaseDirectory }) {
   const context = validateTagContext({ root, tag });
+  const complete = readCompleteArtifactSet(releaseDirectory);
   const repository =
     process.env.GITHUB_REPOSITORY ?? "antennabench/antennabench";
-  const text = releaseNotesText({ context, repository });
+  const text = releaseNotesText({ context, repository, manifest: complete.manifest });
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.writeFileSync(filename, text);
 }
 
-export function releaseNotesText({ context, repository }) {
+export function releaseNotesText({ context, repository, manifest }) {
+  if (
+    manifest?.publishable !== true ||
+    manifest.state !== "complete" ||
+    manifest.tag !== context.tag ||
+    manifest.version !== context.version ||
+    manifest.source_commit !== context.commit
+  ) {
+    throw new Error("release notes require the verified complete manifest for the exact tag, version, and source");
+  }
+  const macTargets = ["aarch64-apple-darwin", "x86_64-apple-darwin"];
+  const macArtifacts = manifest.artifacts?.filter((artifact) => macTargets.includes(artifact.target)) ?? [];
+  if (
+    macArtifacts.length !== macTargets.length ||
+    !macTargets.every((target) => macArtifacts.some((artifact) => artifact.target === target))
+  ) {
+    throw new Error("release notes require both verified Mac artifacts");
+  }
+  const macModes = new Set(macArtifacts.map(trustModeForArtifact));
+  if (macModes.size !== 1) throw new Error("release notes require matching Mac signature policies");
+  const macMode = [...macModes][0];
+  if (!["release", "unsigned-macos"].includes(macMode)) {
+    throw new Error("release notes require a publishable Mac signature policy");
+  }
+  const macTrust = macMode === "release"
+    ? "These Mac apps are signed with Developer ID, notarized, and stapled. "
+    : "These Mac apps are not Developer ID signed or notarized. macOS may block their first launch. ";
+  const macOpening = macMode === "unsigned-macos"
+    ? "After verifying the download and trying to open the app, if you trust this release and macOS offers the option, use **System Settings → Privacy & Security → Open Anyway**, then confirm **Open**. " +
+      "This grants permission for this app. Apple has not checked this release for malware; do not override a malware or damaged-app alert. Managed Macs may prevent opening unsigned apps. " +
+      "See [Apple’s guidance for opening apps](https://support.apple.com/en-us/102445).\n\n"
+    : "";
+  const promotion = macMode === "unsigned-macos"
+    ? "Clean-system interactive installation, native dialogs, full report/export/reopen sessions, upgrades, and external participant validation remain deferred preview work. The automated release checks do not substitute for those observations.\n"
+    : "This is a private draft verification candidate. Stable publication requires explicit owner promotion after clean-system install, launch, and canonical open/report/export/reopen verification.\n";
   return `# ${PRODUCT} ${context.version}\n\n` +
     `Source: [${context.commit}](https://github.com/${repository}/commit/${context.commit})\n\n` +
-    `This draft contains separate macOS 15+ archives for Apple silicon and Intel Macs. ` +
-    `These Mac apps are signed with Developer ID, notarized, and stapled. ` +
+    "This is an early preview for manual WSPR antenna comparisons using WSJT-X for transmission and decoding. It does not generate or decode native WSPR audio.\n\n" +
+    `This release contains separate macOS 15+ archives for Apple silicon and Intel Macs. ` +
+    macTrust +
     `Download the ZIP matching your Mac, verify the checksums and GitHub attestation, then extract it and move ${PRODUCT}.app to Applications.\n\n` +
     "```sh\n" +
-    `shasum -a 256 -c ${PRODUCT}-${context.version}-SHA256SUMS\n` +
+    `shasum -a 256 ${PRODUCT}-${context.version}-aarch64-apple-darwin.zip\n` +
     `gh attestation verify ${PRODUCT}-${context.version}-aarch64-apple-darwin.zip --repo ${repository}\n` +
-    `gh attestation verify ${PRODUCT}-${context.version}-x86_64-apple-darwin.zip --repo ${repository}\n` +
     "```\n\n" +
+    `For an Intel Mac, replace aarch64-apple-darwin with x86_64-apple-darwin in both commands. Compare the SHA256 value with the same ZIP's entry in ${PRODUCT}-${context.version}-SHA256SUMS before extracting it.\n\n` +
+    macOpening +
     `Windows 11 x64: download ${PRODUCT}-${context.version}-x86_64-pc-windows-msvc-setup.exe. ` +
     "This per-user NSIS installer includes the offline WebView2 runtime installer and does not require a separate runtime download. " +
     "The Windows installer and app are unsigned; Windows may show an unknown-publisher or SmartScreen warning. " +
@@ -340,7 +378,7 @@ export function releaseNotesText({ context, repository }) {
     `Compare the SHA256 value with the Windows installer entry in ${PRODUCT}-${context.version}-SHA256SUMS, then run the installer.\n\n` +
     `Third-party notices, including the complete CDLA-Permissive-2.0 agreement for the packaged CA-root data, are included in ${PRODUCT}.app/Contents/Resources/THIRD_PARTY_NOTICES.txt on macOS and THIRD_PARTY_NOTICES.txt in the Windows installation directory.\n\n` +
     "Known limitations: macOS 15 or later or Windows 11 x64 is required; Linux, automatic updates, the Mac App Store, and package-manager installation are not included. Windows station-location lookup requires manual grid entry.\n\n" +
-    "This is a private draft verification candidate. Stable publication requires explicit owner promotion after clean-system install, launch, and canonical open/report/export/reopen verification.\n";
+    promotion;
 }
 
 export async function authenticateReleaseArtifacts(
@@ -361,8 +399,9 @@ export async function authenticateReleaseArtifacts(
     "--source-ref", `refs/tags/${tag}`,
     "--deny-self-hosted-runners",
   ];
-  // Authenticate every downloaded byte before a native inspector can execute
-  // the intentionally unsigned Windows installer.
+  // Authenticate every downloaded byte before native inspection extracts a Mac
+  // app or executes the intentionally unsigned Windows installer. The native
+  // inspector derives each platform's trust mode from that verified manifest.
   for (const filename of complete.entries) {
     await authenticate(path.join(directory, filename), policy);
   }
@@ -419,7 +458,12 @@ async function main() {
       evidenceDirectory: path.resolve(requireOption(options, "evidence")),
     });
   } else if (options.command === "notes") {
-    writeReleaseNotes({ filename: path.resolve(requireOption(options, "output")), root, tag: requireOption(options, "tag") });
+    writeReleaseNotes({
+      filename: path.resolve(requireOption(options, "output")),
+      releaseDirectory: path.resolve(requireOption(options, "releaseDir")),
+      root,
+      tag: requireOption(options, "tag"),
+    });
   } else if (options.command === "publish-draft") {
     publishDraft({
       directory: path.resolve(requireOption(options, "input")),

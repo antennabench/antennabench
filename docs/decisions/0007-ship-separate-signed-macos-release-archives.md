@@ -7,6 +7,9 @@ Toolchain policy amended by
 Platform and asset policy amended by
 [Decision 0030](0030-ship-unsigned-windows-x64-installers.md), which adds an
 unsigned Windows 11 x64 installer without changing the macOS trust requirements.
+The current macOS trust and early-preview promotion policy is amended by
+[Decision 0031](0031-ship-unsigned-macos-early-previews.md), which explicitly
+permits unsigned or ad-hoc Mac apps without Developer ID or notarization.
 The original decision below is retained as historical context; the current
 operating contract is maintained in [Desktop Releases](../releasing.md).
 

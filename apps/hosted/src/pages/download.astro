@@ -20,7 +20,7 @@ const description = "Get AntennaBench for Windows 11 or macOS 15, with separate 
         <div class="download-pending explain-card">
           <strong>Desktop downloads are not available yet.</strong>
           <p>
-            Windows 11 and macOS installers are being prepared. Contributors can
+            Windows 11 installers and macOS app archives are being prepared. Contributors can
             run the app from source using the development guide.
           </p>
           <a class="text-link" href="https://github.com/antennabench/antennabench/blob/main/docs/development.md">Run from source <span aria-hidden="true">↗</span></a>
@@ -77,9 +77,25 @@ const description = "Get AntennaBench for Windows 11 or macOS 15, with separate 
         </p>
         <h3>macOS 15 or later</h3>
         <p>
-          Choose the build for your Mac’s processor, unzip it, and move
-          AntennaBench.app to Applications. Published Mac apps are signed with
-          Developer ID and notarized by Apple.
+          Current Mac previews are not Developer ID signed or notarized, so
+          macOS may block the first launch. The local ad-hoc bundle seal checks
+          integrity; it does not identify a developer or mean Apple has screened the app.
+          Check the release notes, verify the project download’s checksum and
+          provenance, then unzip the matching build and move AntennaBench.app
+          to Applications.
+        </p>
+        <p>
+          After trying to open the app, if you trust this verified download and
+          macOS offers the option, open <strong>System Settings → Privacy &amp;
+          Security → Open Anyway</strong>, then confirm <strong>Open</strong>.
+          This gives permission for this app; a managed Mac may block it.
+          Follow <a href="https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac">Apple’s guidance for an app from an unknown developer</a>.
+          Do not override a malware or damaged-app alert.
+        </p>
+        <p class="fine-print">
+          This early preview has automated package and application-workflow
+          checks. Clean-machine interactive and external-beta validation remains
+          deferred; read the release notes for the checks actually performed.
         </p>
       </div>
     </div>

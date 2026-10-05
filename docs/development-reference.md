@@ -565,10 +565,11 @@ runtime dependency or webview capability.
 
 The release contract supports macOS 15 and later with separate native
 Apple-silicon and Intel ZIP archives, plus a per-user NSIS installer for Windows
-11 x64. [Decision 0030](decisions/0030-ship-unsigned-windows-x64-installers.md)
-adds intentionally unsigned Windows distribution while retaining every macOS
-signing and notarization requirement. Each target must be built on its matching
-native host with the system prerequisites and Mise-managed tools above:
+11 x64. [Decision 0031](decisions/0031-ship-unsigned-macos-early-previews.md)
+selects unsigned or ad-hoc Mac apps without Developer ID or notarization for
+the current early preview; Windows remains intentionally unsigned. Each target
+must be built on its matching native host with the system prerequisites and
+Mise-managed tools above:
 
 ```bash
 # Apple silicon on macos-15 or a local arm64 Mac
@@ -587,8 +588,9 @@ identity checks. An explicit `--tag vMAJOR.MINOR.PATCH` fails unless it exactly
 matches the Cargo workspace version, and the real tag workflow supplies and
 checks `github.ref_name`. CI also passes the exact runner label `macos-15`,
 `macos-15-intel`, or `windows-2025`; a mismatched native machine, runner, target,
-version, or tag fails before staging. Probe output remains unsigned and
-non-publishable even though it exercises the same official build identity.
+version, or tag fails before staging. Uploaded probe output remains
+non-publishable even though it exercises the same official build identity and
+PR probes may check unsigned-Mac staging in separate scratch output.
 
 The command first runs the single-toolchain check and the fresh non-secret
 `release-preflight`. It installs the explicit Rust target, then invokes Tauri
@@ -598,6 +600,8 @@ has a 30-minute timeout. Tauri inherits its version from the Cargo workspace.
 The macOS configuration sets minimum system version 15.0 and avoids the DMG
 bundler; the Windows configuration selects per-user installation and the offline
 Evergreen WebView2 Runtime installer.
+Mac builds then apply a local ad-hoc bundle integrity seal and strictly verify
+it. This uses no Developer ID identity, Apple account, or notarization.
 
 macOS staging verifies the following against the built app and again after a
 `ditto` ZIP extraction:
@@ -617,11 +621,12 @@ on both installer and executable, verifies the exact notices beside the
 executable, proves a native window and WebView2 process start, and silently
 uninstalls. Use a clean Windows test user: the verifier refuses an existing
 AntennaBench installation, running process, or application-data directory. This
-automation proves packaging and basic launch; it does not replace clean Windows
-11 interactive open/report/export/reopen, upgrade, and uninstall evidence.
+automation proves packaging and basic launch. Clean Windows 11 interactive
+open/report/export/reopen, upgrade, uninstall, and missing-WebView2 validation
+remain deferred preview work; they must not be represented as completed by CI.
 
-The normal build deliberately skips signing. On Apple silicon the
-Mach-O may retain an ad-hoc linker signature, but the target manifest records
+The normal build skips Developer ID signing and notarization. Its local ad-hoc
+Mac bundle seal does not identify a developer. The probe target manifest records
 `publishable: false`, the directory contains `NON_PUBLISHABLE.txt`, and output
 is isolated under:
 
@@ -660,11 +665,27 @@ artifacts and the release manifest, but not itself. The assembled local set rema
 `target/desktop-release/non-publishable/complete` and cannot pass
 `--require-publishable`.
 
-The `v*` tag workflow owns promotion into release staging. Protected macOS jobs
-sign, notarize, and staple each `.app`, then call `desktop:release-stage` with
-`--trust-mode release`. macOS release mode fails unless Developer ID authority,
-hardened runtime, secure timestamp, stapled notarization, strict code-signature
-validation, and Gatekeeper assessment all pass.
+The `v*` tag workflow owns promotion into release staging. The current Mac jobs
+call `desktop:release-stage` with `--trust-mode unsigned-macos`, without an Apple
+environment, credentials, or signing approval:
+
+```bash
+mise run desktop:release-stage -- \
+  path/to/AntennaBench.app aarch64-apple-darwin \
+  --trust-mode unsigned-macos --tag v<version>
+```
+
+Use `x86_64-apple-darwin` on the native Intel host. This mode permits unsigned or
+ad-hoc code, records `signature_policy: unsigned-macos`, and does not claim
+notarization, stapling, or Gatekeeper acceptance. It still requires exact
+embedded metadata, native architecture, deployment target, notices, and ZIP
+verification. Assembly rejects mixed Mac policies and inconsistent evidence.
+
+Developer ID helpers and `--trust-mode release` remain available for a future
+reviewed signing switch. That Mac mode still fails unless Developer ID
+authority, hardened runtime, secure timestamp, stapled notarization, strict
+code-signature validation, and Gatekeeper assessment all pass. It cannot
+automatically fall back to unsigned mode after a signing failure.
 
 The Windows job stages its verified installer with the same release-mode entry
 point, without credentials:
@@ -706,10 +727,11 @@ and save pickers appear, cancellation
 returns to the app normally, and selecting the canonical fixture hands a local
 directory path to the app. The unattended test owns open → report → export →
 reopen semantics, error behavior, preservation assertions, and diagnostics.
-Public-release promotion separately requires the owner to prove clean-system
-interactive behavior on each supported platform as described in the release
-runbook. Stop the development process with Control-C and use `jj status` to
-confirm the fixture was unchanged.
+The owner-authorized unsigned companion preview may be published after its
+required automated release checks. Clean-system interactive and external-beta
+evidence remains deferred and must be recorded before claiming completed field
+validation, as described in the release runbook. Stop the development process
+with Control-C and use `jj status` to confirm the fixture was unchanged.
 
 The main webview capability allowlists focused setup, conductor, receiver,
 session-open, manual WSPR.live/RBN import, checkpoint-export,

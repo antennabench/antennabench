@@ -2,6 +2,11 @@
 
 Date: 2026-07-28
 
+Release trust and companion-preview publication policy subsequently amended by
+[Decision 0031](../decisions/0031-ship-unsigned-macos-early-previews.md). The
+signed private-proof and no-public-companion requirements below are retained
+as historical context; the native-WSPR product roadmap remains separate work.
+
 ## Purpose
 
 Turn the first broad newcomer feedback session into a current, low-ceremony

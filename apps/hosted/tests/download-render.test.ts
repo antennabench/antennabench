@@ -31,15 +31,21 @@ describe("static desktop download pages", () => {
       expect(download).not.toMatch(/<script\b/i);
       expect(download).toContain("intentionally unsigned");
       expect(download).toContain("Developer ID");
+      expect(download).toContain("not Developer ID signed or notarized");
+      expect(download).toContain("Open Anyway");
+      expect(download).toContain("Do not override a malware or damaged-app alert.");
+      expect(download).not.toContain("Signed and notarized app");
+      expect(download).not.toContain("Published Mac apps are signed");
+      expect(download).not.toMatch(/xattr|spctl --master-disable/);
       if (published) {
         const release = publishedDesktopRelease(publicRelease());
-        expect(download).toContain('data-desktop-release="v0.1.0"');
+        expect(download).toContain('data-desktop-release="v0.1.1"');
         for (const url of [...release.downloads.map(({ url }: { url: string }) => url), release.checksumsUrl, release.manifestUrl]) {
           expect(download).toContain(`href="${url}"`);
         }
         expect(download).not.toContain("Desktop downloads are not available yet.");
         expect(home).toContain(">Download AntennaBench</a>");
-        expect(home).toContain("Version 0.1.0 is available");
+        expect(home).toContain("Version 0.1.1 is available");
       } else {
         expect(download).toContain('data-desktop-release="unavailable"');
         expect(download).toContain("Desktop downloads are not available yet.");

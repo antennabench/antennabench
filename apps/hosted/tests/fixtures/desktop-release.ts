@@ -1,7 +1,7 @@
 import { desktopReleaseFiles } from "../../src/lib/desktop-release.mjs";
 
 export function publicRelease() {
-  const files = desktopReleaseFiles("v0.1.0");
+  const files = desktopReleaseFiles("v0.1.1");
   return {
     tag_name: files.tag,
     html_url: files.url,
