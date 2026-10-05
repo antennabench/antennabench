@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # -*- mode: sh; sh-shell: bash; -*-
 #MISE description="Run CI checks"
-#MISE depends=["module-size", "toolchain", "supply-chain", "dependency-policy", "summary-terminology", "report:template-format-check", "report:css-format-check", "desktop:frontend-coverage", "desktop:release-test", "desktop:publication-test", "hosted:test", "examples:test", "research:test", "ci-rust"]
+#MISE depends=["module-size", "toolchain", "supply-chain", "dependency-policy", "summary-terminology", "report:template-format-check", "report:css-format-check", "desktop:frontend-coverage", "desktop:release-test", "desktop:publication-test", "examples:test", "research:test", "ci-rust"]
 
 set -euo pipefail
 
-# Most node-side checks run in parallel with the serial cargo lane (ci-rust).
-# Frontend coverage finishes before that lane starts to avoid CPU contention.
+# Lightweight checks run in parallel with the serial build lane (ci-rust).
+# That lane runs hosted verification and Rust checks after frontend coverage,
+# so cold compilation and Astro builds cannot compete with its DOM tests.
 # desktop:frontend-coverage runs the frontend suite, so ci does not also run
 # desktop:frontend-test.
 echo "ci: all checks passed"
