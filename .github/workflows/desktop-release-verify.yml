@@ -1,0 +1,143 @@
+name: Verify existing desktop release draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vMAJOR.MINOR.PATCH private draft to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-verify-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  download:
+    name: Authenticate actual private draft bytes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      attestations: read
+    outputs:
+      source_commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - name: Checkout reviewed verification helpers
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate stable tag and helper source in main
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch origin main
+          helper_commit=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$helper_commit" origin/main
+
+      - name: Checkout exact tagged release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: release-source
+          fetch-depth: 0
+
+      - name: Record the actual tagged source commit
+        id: source
+        run: echo "commit=$(git -C release-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up mise from reviewed helpers
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          version: 2026.7.6
+          github_token: ${{ github.token }}
+
+      - name: Download and authenticate all five private draft assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: >-
+          mise run desktop:publication-download-draft --
+          "$RELEASE_TAG"
+          target/desktop-publication/downloaded-draft
+          "$SOURCE_COMMIT"
+          --root release-source
+
+      - name: Hand authenticated draft bytes to read-only native jobs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-release-downloaded-draft
+          path: target/desktop-publication/downloaded-draft
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    name: Verify downloaded draft (${{ matrix.target }})
+    needs: download
+    permissions:
+      contents: read
+      attestations: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-15
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout reviewed verification helpers
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate helper source in main
+        run: |
+          git fetch origin main
+          helper_commit=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$helper_commit" origin/main
+
+      - name: Checkout the authenticated release source commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.download.outputs.source_commit }}
+          path: release-source
+          fetch-depth: 0
+
+      - name: Set up mise from reviewed helpers
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          version: 2026.7.6
+          github_token: ${{ github.token }}
+
+      - name: Download authenticated private draft handoff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: desktop-release-downloaded-draft
+          path: target/desktop-publication/downloaded-draft
+
+      - name: Reauthenticate all five assets before native inspection
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          SOURCE_COMMIT: ${{ needs.download.outputs.source_commit }}
+        run: >-
+          mise run desktop:publication-verify-downloaded --
+          "$RELEASE_TAG"
+          "${{ matrix.target }}"
+          target/desktop-publication/downloaded-draft
+          "$SOURCE_COMMIT"
+          --root release-source

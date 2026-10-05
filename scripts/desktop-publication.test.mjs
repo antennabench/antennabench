@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { authenticateReleaseArtifacts, planDraftMutation, releaseNotesText } from "./desktop-publication.mjs";
+import {
+  authenticateReleaseArtifacts, commandResult, downloadDraft, planDraftMutation,
+  releaseNotesText, releaseView, verifyDownloaded,
+} from "./desktop-publication.mjs";
+import { archiveName, canonicalJson, checksumLines, readCompleteArtifactSet } from "./desktop-release.mjs";
 
 const ASSETS = [
   "AntennaBench-0.1.0-SHA256SUMS",
@@ -74,6 +82,202 @@ function notesRequest(macPolicy = "developer-id-notarized") {
     },
   };
 }
+
+function writeReleaseFixture(directory, { version = "0.1.0", commit = SOURCE } = {}) {
+  fs.mkdirSync(directory, { recursive: true });
+  const signature = { authorities: [], classification: "unsigned", publishable: true, secure_timestamp: false };
+  const manifest = notesRequest("unsigned-macos").manifest;
+  Object.assign(manifest, {
+    schema_version: 1, product: "AntennaBench", bundle_identifier: "com.rwjblue.antennabench",
+    minimum_macos: "15.0", version, tag: `v${version}`, source_commit: commit,
+  });
+  manifest.artifacts.push({
+    target: "x86_64-pc-windows-msvc", signature_policy: "unsigned",
+    app: { architecture: "x86_64", metadata: { minimum_windows: "11" }, signature, executable_signature: { ...signature } },
+  });
+  for (const artifact of manifest.artifacts) {
+    Object.assign(artifact.app.metadata, { build_version: version, short_version: version });
+    const bytes = Buffer.from(`non-native fixture ${artifact.target}`);
+    Object.assign(artifact, { filename: archiveName(version, artifact.target), size: bytes.length, sha256: crypto.createHash("sha256").update(bytes).digest("hex") });
+    fs.writeFileSync(path.join(directory, artifact.filename), bytes);
+  }
+  const manifestName = `AntennaBench-${version}-release-manifest.json`;
+  const manifestText = canonicalJson(manifest);
+  fs.writeFileSync(path.join(directory, manifestName), manifestText);
+  fs.writeFileSync(path.join(directory, `AntennaBench-${version}-SHA256SUMS`), checksumLines([
+    ...manifest.artifacts.map((artifact) => [artifact.filename, artifact.sha256]),
+    [manifestName, crypto.createHash("sha256").update(manifestText).digest("hex")],
+  ]));
+  return readCompleteArtifactSet(directory);
+}
+
+function handoffRequest(directory) {
+  return { directory, root: "/source-checkout", tag: "v0.1.0", expectedCommit: SOURCE, repository: "antennabench/antennabench" };
+}
+
+function verifiedFixtureContext(request) {
+  assert.deepEqual(request, { root: "/source-checkout", tag: "v0.1.0", expectedCommit: SOURCE });
+  return { tag: request.tag, version: "0.1.0", commit: request.expectedCommit };
+}
+
+function privateDraft() {
+  return { isDraft: true, tagName: "v0.1.0", assets: ASSETS.map((name) => ({ name })) };
+}
+
+test("private draft handoff downloads exactly five authenticated assets without native inspection", async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-private-draft-"));
+  const directory = path.join(temporary, "handoff");
+  const events = [];
+  try {
+    const complete = await downloadDraft(handoffRequest(directory), {
+      validateContext: verifiedFixtureContext,
+      viewRelease: (tag, options) => {
+        assert.equal(tag, "v0.1.0");
+        assert.deepEqual(options, { repository: "antennabench/antennabench", cwd: "/source-checkout" });
+        events.push("view");
+        return privateDraft();
+      },
+      download: (tag, staging) => { assert.equal(tag, "v0.1.0"); events.push("download"); writeReleaseFixture(staging); },
+      authenticate: (filename, policy) => {
+        events.push(path.basename(filename));
+        assert.ok(policy.includes(SOURCE));
+        assert.ok(policy.includes("refs/tags/v0.1.0"));
+      },
+    });
+    assert.deepEqual(events, ["view", "download", ...ASSETS]);
+    assert.deepEqual(complete.entries, ASSETS);
+    assert.deepEqual(fs.readdirSync(directory).sort(), ASSETS);
+    await authenticateReleaseArtifacts({ ...downloadedRelease(), target: undefined }, {
+      authenticate: () => {}, inspect: () => assert.fail("publisher must not extract or execute packages"),
+    });
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test("private draft handoff rejects wrong identity, partial assets, and provenance failure before creating a final directory", async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-private-draft-rejected-"));
+  try {
+    for (const failure of ["published", "tag", "source", "assets", "attestation"]) {
+      const directory = path.join(temporary, failure);
+      let authenticated = 0;
+      await assert.rejects(downloadDraft(handoffRequest(directory), {
+        validateContext: verifiedFixtureContext,
+        viewRelease: () => ({ ...privateDraft(),
+          ...(failure === "published" ? { isDraft: false } : {}),
+          ...(failure === "tag" ? { tagName: "v0.2.0" } : {}),
+          ...(failure === "assets" ? { assets: [{ name: ASSETS[0] }] } : {}),
+        }),
+        download: (_tag, staging) => writeReleaseFixture(staging, { commit: failure === "source" ? "f".repeat(40) : SOURCE }),
+        authenticate: () => { authenticated++; if (failure === "attestation") throw new Error("attestation rejected"); },
+      }));
+      assert.equal(authenticated, failure === "attestation" ? 1 : 0);
+      assert.equal(fs.existsSync(directory), false);
+    }
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+for (const target of ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc"]) {
+  test(`handed-off ${target} verification authenticates all five assets before native inspection`, async () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-handoff-native-"));
+    try {
+      writeReleaseFixture(directory);
+      let authenticated = 0;
+      let inspected = false;
+      await verifyDownloaded({ ...handoffRequest(directory), target }, {
+        validateContext: verifiedFixtureContext,
+        authenticate: () => { authenticated++; },
+        inspect: (request) => {
+          assert.equal(authenticated, 5);
+          assert.deepEqual(request, { directory, inspectTarget: target });
+          inspected = true;
+        },
+      });
+      assert.equal(inspected, true);
+      inspected = false;
+      await assert.rejects(verifyDownloaded({ ...handoffRequest(directory), target }, {
+        validateContext: verifiedFixtureContext,
+        authenticate: (filename) => { if (filename.endsWith("-release-manifest.json")) throw new Error("provenance rejected"); },
+        inspect: () => { inspected = true; },
+      }), /provenance rejected/);
+      assert.equal(inspected, false);
+      assert.deepEqual(fs.readdirSync(directory).sort(), ASSETS);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}
+
+test("handed-off verification rejects tag, source, and changed-byte mismatches before authentication", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-handoff-context-"));
+  try {
+    for (const failure of ["tag", "source", "bytes"]) {
+      const complete = writeReleaseFixture(directory, { version: failure === "tag" ? "0.2.0" : "0.1.0", commit: failure === "source" ? "f".repeat(40) : SOURCE });
+      if (failure === "bytes") fs.appendFileSync(path.join(directory, complete.entries[1]), "tampered");
+      let authenticated = 0;
+      let inspected = false;
+      await assert.rejects(verifyDownloaded({ ...handoffRequest(directory), target: "aarch64-apple-darwin" }, {
+        validateContext: verifiedFixtureContext,
+        authenticate: () => { authenticated++; },
+        inspect: () => { inspected = true; },
+      }), failure === "bytes" ? /does not match the release manifest/ : /does not match the verified tag and source/);
+      assert.equal(authenticated, 0);
+      assert.equal(inspected, false);
+      for (const filename of fs.readdirSync(directory)) fs.rmSync(path.join(directory, filename));
+    }
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("source checkout validation failure cannot reach GitHub or native inspection", async () => {
+  for (const helper of [downloadDraft, verifyDownloaded]) {
+    let contacted = false;
+    let inspected = false;
+    await assert.rejects(helper({ ...handoffRequest("/unused"), target: "aarch64-apple-darwin" }, {
+      validateContext: (request) => { verifiedFixtureContext(request); throw new Error("expected source does not match checked-out commit"); },
+      viewRelease: () => { contacted = true; },
+      authenticate: () => { contacted = true; },
+      inspect: () => { inspected = true; },
+    }), /expected source does not match checked-out commit/);
+    assert.equal(contacted, false);
+    assert.equal(inspected, false);
+  }
+});
+
+test("handoff commands require an explicit source commit before inspecting the checkout or contacting GitHub", async () => {
+  for (const helper of [downloadDraft, verifyDownloaded]) {
+    await assert.rejects(helper({ ...handoffRequest("/unused"), expectedCommit: undefined }, {
+      validateContext: () => assert.fail("missing source commitment must be rejected before reading Git"),
+    }), /explicit 40-character expected source commit/);
+  }
+  const script = fileURLToPath(new URL("./desktop-publication.mjs", import.meta.url));
+  for (const [command, directoryFlag] of [["download-draft", "--output"], ["verify-downloaded", "--input"]]) {
+    const result = spawnSync(process.execPath, [script, command, directoryFlag, "/unused", "--tag", "v0.1.0", "--target", "aarch64-apple-darwin", "--root", "/unused-source"], { encoding: "utf8", timeout: 10_000 });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /missing --expected-commit/);
+  }
+});
+
+test("release lookup preserves launch, timeout, signal, and exit diagnostics instead of treating them as missing drafts", () => {
+  for (const code of ["ENOENT", "ETIMEDOUT"]) {
+    const error = Object.assign(new Error(`gh ${code}`), { code });
+    assert.throws(() => releaseView("v0.1.0", { run: () => ({ error, status: null, stderr: "release not found", stdout: "" }) }), new RegExp(code));
+  }
+  assert.throws(() => releaseView("v0.1.0", { run: () => ({ status: null, signal: "SIGTERM", stderr: "release not found", stdout: "" }) }), /signal SIGTERM/);
+  assert.throws(() => releaseView("v0.1.0", { run: () => ({ status: 1, stderr: "API denied", stdout: "GitHub diagnostic: " }) }), /exit 1.*\nGitHub diagnostic: API denied/);
+  assert.equal(releaseView("v0.1.0", { run: () => ({ status: 1, stderr: "release not found", stdout: "" }) }), null);
+  const missingCommand = `antennabench-missing-command-${crypto.randomUUID()}`;
+  assert.throws(() => releaseView("v0.1.0", { run: () => commandResult(missingCommand, []) }), /ENOENT/);
+});
+
+test("native Windows publication subprocesses resolve GitHub CLI from the activated MSYS environment", { skip: process.platform !== "win32" }, () => {
+  const result = commandResult("gh", ["--version"]);
+  assert.equal(result.status, 0, result.error?.message ?? `${result.stdout}${result.stderr}`);
+  assert.match(result.stdout, /^gh version /);
+});
 
 test("failed provenance never executes the downloaded unsigned installer", async () => {
   const calls = [];

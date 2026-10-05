@@ -704,6 +704,38 @@ all three official target outputs. Only the complete five-file set may be
 attached to a draft GitHub Release. [Desktop Releases](releasing.md) is the
 maintained owner and user runbook; the workflow never publishes a stable release.
 
+After attestation and draft creation, the release workflow's contents-write
+job downloads and authenticates the actual five private draft assets. It
+uploads those exact bytes as `desktop-release-downloaded-draft`; the three
+native consumers receive only contents-read and attestations-read permissions.
+Each consumer authenticates the complete set against the original release
+workflow, exact tag, and source commit before native extraction or execution.
+The Actions artifact is a transport, not a substitute for those checks.
+
+The separate `desktop-release-verify.yml` workflow can recover verification of
+an existing complete draft after an infrastructure failure. Reviewed helpers
+remain at the workspace root while the original release source is checked out
+under `release-source`. The downloader records the tagged commit; native
+consumers pin their source checkout and expected identity to that value. The
+Mise entry points are:
+
+```bash
+mise run desktop:publication-download-draft -- \
+  v<version> target/desktop-publication/downloaded-draft \
+  <tagged-source-commit> --root release-source
+mise run desktop:publication-verify-downloaded -- \
+  v<version> <native-target> target/desktop-publication/downloaded-draft \
+  <tagged-source-commit> --root release-source
+```
+
+Both require the full expected source SHA and validate the original tagged
+source context. Downloading authenticates all five assets without native
+execution; verifying reauthenticates all five before inspecting the selected
+native package. Recovery does not rebuild or publish, and cannot excuse a
+package or provenance defect. Follow the
+[existing-draft recovery procedure](releasing.md#verify-an-existing-complete-draft)
+and retain the original failed run as evidence.
+
 Run the platform-independent parsing, naming, manifest, checksum, unexpected
 asset, and failure-cleanup regressions with:
 

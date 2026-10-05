@@ -14,30 +14,39 @@ import {
   verifyCompleteArtifacts,
   withAtomicDirectory,
 } from "./desktop-release.mjs";
+import { nativeWindowsEnvironment } from "./desktop-windows-release.mjs";
 
 const PRODUCT = "AntennaBench";
 const MAX_NOTARY_LOG_BYTES = 1_048_576;
 
-function commandResult(command, args, options = {}) {
+export function commandResult(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
-    env: options.env,
+    env: nativeWindowsEnvironment(options.env ?? process.env),
     encoding: "utf8",
     timeout: options.timeout ?? 60_000,
   });
   return {
     error: result.error,
+    signal: result.signal,
     status: result.status,
     stderr: result.stderr ?? "",
     stdout: result.stdout ?? "",
   };
 }
 
+function commandFailureReason(result) {
+  if (result.error) {
+    return `${result.error.message}${result.error.code ? ` [${result.error.code}]` : ""}`;
+  }
+  return result.signal ? `signal ${result.signal}` : `exit ${result.status}`;
+}
+
 function capture(command, args, options = {}) {
   const result = commandResult(command, args, options);
-  if (result.error || result.status !== 0) {
+  if (result.error || result.signal || result.status !== 0) {
     const output = `${result.stdout}${result.stderr}`.trim();
-    const reason = result.error?.message ?? `exit ${result.status}`;
+    const reason = commandFailureReason(result);
     const invocation = options.sensitive ? command : `${command} ${args.join(" ")}`;
     throw new Error(`${invocation} failed (${reason})${output ? `:\n${output}` : ""}`);
   }
@@ -246,11 +255,14 @@ export function planDraftMutation(existing, expectedAssets) {
   throw new Error(`draft asset set is partial or mismatched: found ${actual.join(", ") || "none"}`);
 }
 
-function releaseView(tag) {
-  const result = commandResult("gh", ["release", "view", tag, "--json", "assets,isDraft,tagName,url"]);
-  if (result.status !== 0) {
-    if (/release not found|not found/i.test(`${result.stdout}${result.stderr}`)) return null;
-    throw new Error(`unable to inspect existing release: ${result.stderr.trim()}`);
+export function releaseView(tag, { repository, cwd, run = commandResult } = {}) {
+  const args = ["release", "view", tag, "--json", "assets,isDraft,tagName,url"];
+  if (repository) args.push("--repo", repository);
+  const result = run("gh", args, { cwd });
+  if (result.error || result.signal || result.status !== 0) {
+    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+    if (!result.error && !result.signal && typeof result.status === "number" && /release not found|not found/i.test(output)) return null;
+    throw new Error(`unable to inspect existing release (${commandFailureReason(result)})${output ? `:\n${output}` : ""}`);
   }
   return JSON.parse(result.stdout);
 }
@@ -405,21 +417,67 @@ export async function authenticateReleaseArtifacts(
   for (const filename of complete.entries) {
     await authenticate(path.join(directory, filename), policy);
   }
+  // The publisher authenticates the private draft without extracting or
+  // executing any package. Read-only consumers authenticate the handed-off
+  // bytes again before selecting a native target to inspect.
+  if (target === undefined) return complete;
   return inspect({ directory, inspectTarget: target });
 }
 
-export async function verifyDraft({ directory, root, tag, target }) {
-  const context = validateTagContext({ root, tag });
-  const existing = releaseView(tag);
+function requireExpectedCommit(expectedCommit) {
+  if (!/^[0-9a-f]{40}$/.test(expectedCommit ?? "")) {
+    throw new Error("an explicit 40-character expected source commit is required for downloaded release verification");
+  }
+}
+
+export async function downloadDraft(
+  { directory, root, tag, expectedCommit, repository = process.env.GITHUB_REPOSITORY },
+  {
+    validateContext = validateTagContext,
+    viewRelease = releaseView,
+    download = (releaseTag, output) => capture("gh", ["release", "download", releaseTag, "--repo", repository, "--dir", output], { cwd: root, timeout: 300_000 }),
+    authenticate,
+  } = {},
+) {
+  requireExpectedCommit(expectedCommit);
+  const context = validateContext({ root, tag, expectedCommit });
+  if (!repository) throw new Error("GITHUB_REPOSITORY is required for draft download and attestation verification");
+  const existing = viewRelease(tag, { repository, cwd: root });
   if (!existing?.isDraft) throw new Error("expected an existing draft release");
-  fs.rmSync(directory, { recursive: true, force: true });
-  fs.mkdirSync(directory, { recursive: true });
-  capture("gh", ["release", "download", tag, "--dir", directory], { timeout: 300_000 });
-  const complete = readCompleteArtifactSet(directory);
-  await authenticateReleaseArtifacts({
-    complete, directory, repository: process.env.GITHUB_REPOSITORY,
-    tag, commit: context.commit, target,
+  if (existing.tagName !== tag) throw new Error("draft release tag does not match the requested tag");
+  await withAtomicDirectory(directory, async (staging) => {
+    await download(tag, staging);
+    const complete = readCompleteArtifactSet(staging);
+    if (planDraftMutation(existing, complete.entries) !== "verify-existing") {
+      throw new Error("draft release does not contain the exact complete asset set");
+    }
+    await authenticateReleaseArtifacts({ complete, directory: staging, repository, tag, commit: context.commit }, { authenticate });
   });
+  const complete = readCompleteArtifactSet(directory);
+  console.log(`Downloaded and authenticated private draft ${tag} at ${directory}`);
+  return complete;
+}
+
+export async function verifyDownloaded(
+  { directory, root, tag, target, expectedCommit, repository = process.env.GITHUB_REPOSITORY },
+  { validateContext = validateTagContext, authenticate, inspect } = {},
+) {
+  requireExpectedCommit(expectedCommit);
+  const context = validateContext({ root, tag, expectedCommit });
+  if (!target) throw new Error("native target is required for downloaded release verification");
+  const complete = readCompleteArtifactSet(directory);
+  const verified = await authenticateReleaseArtifacts({
+    complete, directory, repository,
+    tag, commit: context.commit, target,
+  }, { authenticate, inspect });
+  console.log(`Verified handed-off draft ${tag} for ${target}`);
+  return verified;
+}
+
+export async function verifyDraft({ directory, root, tag, target, expectedCommit }) {
+  const context = validateTagContext({ root, tag, expectedCommit });
+  await downloadDraft({ directory, root, tag, expectedCommit: context.commit });
+  await verifyDownloaded({ directory, root, tag, target, expectedCommit: context.commit });
   console.log(`Verified downloaded draft ${tag} for ${target}`);
 }
 
@@ -441,7 +499,7 @@ function requireOption(options, name) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const root = process.cwd();
+  const root = options.root ? path.resolve(options.root) : process.cwd();
   if (options.command === "validate-tag") {
     validateTagContext({ root, tag: requireOption(options, "tag") });
   } else if (options.command === "prepare") {
@@ -477,9 +535,25 @@ async function main() {
       root,
       tag: requireOption(options, "tag"),
       target: requireOption(options, "target"),
+      expectedCommit: options.expectedCommit,
+    });
+  } else if (options.command === "download-draft") {
+    await downloadDraft({
+      directory: path.resolve(requireOption(options, "output")),
+      root,
+      tag: requireOption(options, "tag"),
+      expectedCommit: requireOption(options, "expectedCommit"),
+    });
+  } else if (options.command === "verify-downloaded") {
+    await verifyDownloaded({
+      directory: path.resolve(requireOption(options, "input")),
+      root,
+      tag: requireOption(options, "tag"),
+      target: requireOption(options, "target"),
+      expectedCommit: requireOption(options, "expectedCommit"),
     });
   } else {
-    throw new Error("usage: desktop-publication.mjs validate-tag|prepare|sign|notes|publish-draft|verify-draft [options]");
+    throw new Error("usage: desktop-publication.mjs validate-tag|prepare|sign|notes|publish-draft|download-draft|verify-downloaded|verify-draft [options]");
   }
 }
 
