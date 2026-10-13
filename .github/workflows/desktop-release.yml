@@ -87,7 +87,7 @@ jobs:
           --runner-label "${{ matrix.runner }}"
 
       - name: Upload manifest-bound signing input
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-release-input-${{ matrix.target }}
           path: target/desktop-release/non-publishable/${{ matrix.target }}
@@ -121,7 +121,7 @@ jobs:
           github_token: ${{ github.token }}
 
       - name: Download exact native release input
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-input-${{ matrix.target }}
           path: target/desktop-publication/download/${{ matrix.target }}
@@ -145,7 +145,7 @@ jobs:
           --runner-label "${{ matrix.runner }}"
 
       - name: Upload exact publishable target artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-release-ready-${{ matrix.target }}
           path: target/desktop-release/publishable/${{ matrix.target }}
@@ -206,7 +206,7 @@ jobs:
           --runner-label windows-2025
 
       - name: Upload exact publishable Windows installer
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-release-ready-x86_64-pc-windows-msvc
           path: target/desktop-release/publishable/x86_64-pc-windows-msvc
@@ -230,19 +230,19 @@ jobs:
           github_token: ${{ github.token }}
 
       - name: Download Apple silicon artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-ready-aarch64-apple-darwin
           path: target/desktop-publication/ready/aarch64-apple-darwin
 
       - name: Download Intel artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-ready-x86_64-apple-darwin
           path: target/desktop-publication/ready/x86_64-apple-darwin
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-ready-x86_64-pc-windows-msvc
           path: target/desktop-publication/ready/x86_64-pc-windows-msvc
@@ -259,7 +259,7 @@ jobs:
         run: mise run desktop:release-verify -- target/desktop-release/publishable/complete
 
       - name: Upload complete release set
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-release-complete
           path: target/desktop-release/publishable/complete
@@ -276,13 +276,13 @@ jobs:
       attestations: write
     steps:
       - name: Download complete release set
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-complete
           path: target/desktop-release/publishable/complete
 
       - name: Generate GitHub build provenance
-        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: target/desktop-release/publishable/complete/*
 
@@ -306,7 +306,7 @@ jobs:
           github_token: ${{ github.token }}
 
       - name: Download complete release set
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-complete
           path: target/desktop-release/publishable/complete
@@ -340,7 +340,7 @@ jobs:
           "${{ github.sha }}"
 
       - name: Hand authenticated draft bytes to read-only native jobs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-release-downloaded-draft
           path: target/desktop-publication/downloaded-draft
@@ -380,7 +380,7 @@ jobs:
           github_token: ${{ github.token }}
 
       - name: Download authenticated private draft handoff
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: desktop-release-downloaded-draft
           path: target/desktop-publication/downloaded-draft
